@@ -1,5 +1,3 @@
-<div align="center">
-
 ```
   ██████╗ ██████╗ ██╗██████╗
  ██╔════╝ ██╔══██╗██║██╔══██╗
@@ -134,7 +132,7 @@ yarn dev:editor
 cd server
 npm install
 npm run dev
-# → ws://localhost:3000
+# → ws://localhost:3333
 ```
 
 ### Run All Tests
@@ -174,7 +172,8 @@ grid-engine/
 │   ├── 05-editor-react-vite.md
 │   ├── 06-testing.md
 │   ├── 07-migration-notes.md
-│   ���── 08-references-and-resources.md
+│   ├── 08-references-and-resources.md
+│   └── 09-example-game.md
 │
 ├── tests/                    ← Jest cross-package tests
 │   ├── setup/
@@ -218,7 +217,7 @@ grid-engine/
 │   │
 │   ├── game/                 ← 🎮 example first-person game (@tge/game)
 │   │   ├── package.json
-│   │   ├── vite.config.ts
+│   │   ├── vite.config.js
 │   │   ├── index.html
 │   │   ├── public/           ← game assets + JSON data files
 │   │   │   ├── game.json
@@ -226,7 +225,12 @@ grid-engine/
 │   │   │   ├── types/
 │   │   │   └── assets/
 │   │   └── src/
-│   │       └── main.ts
+│   │       └── main.js
+│   │
+│   ├── shared/               ← 🔗 shared networking types (@tge/shared)
+│   │   ├── package.json
+│   │   └── src/
+│   │       └── types.ts      ← InputSnapshot, WorldSnapshot (used by engine + server)
 │   │
 │   └── editor/               ← 🖊️ React + Vite scene editor (@tge/editor)
 │       ├── package.json
@@ -321,7 +325,7 @@ yarn workspace @tge/editor build  # production static build
 - Live Three.js viewport with hot-reload (change JSON → GameObject reloads instantly)
 - Transform gizmo (translate / rotate / scale) using `THREE.TransformControls`
 - Auto-save with 1 s debounce via the File System Access API
-- Redux Toolkit state with undo-ready action log
+- Redux Toolkit state with action log (undo/redo is architecturally supported but not yet implemented in v1)
 
 ---
 
@@ -394,6 +398,7 @@ All design decisions, architecture specs, and implementation guides live in [`do
 | [`docs/06-testing.md`](docs/06-testing.md) | Test strategy, folder layout, Jest + ts-jest config, Three.js and Rapier mocks, key test cases, CI commands |
 | [`docs/07-migration-notes.md`](docs/07-migration-notes.md) | Every change vs. the reference repo — VR removal, monorepo conversion, Webpack→Vite migration, test reorganisation, multiplayer addition |
 | [`docs/08-references-and-resources.md`](docs/08-references-and-resources.md) | Complete library reference for all dependencies — official docs, best internet resources, API cheatsheets |
+| [`docs/09-example-game.md`](docs/09-example-game.md) | Grid War: full design and implementation spec for the reference FPS game in `packages/game` |
 
 ---
 
@@ -424,7 +429,7 @@ yarn lint              # ESLint all workspaces
 yarn lint:fix          # ESLint with auto-fix
 
 # ── Multiplayer server (from server/) ────────────────────────────
-cd server && npm run dev      # tsx watch
+cd server && npm run dev      # tsx watch (port 3333)
 cd server && npm run build    # tsc
 cd server && npm start        # node dist/index.js
 
@@ -441,13 +446,13 @@ yarn workspaces foreach -Ap run build  # Run build in all workspaces in parallel
 Browser
 ┌─────────────────────────────────────────────────────┐
 │                                                     │
-│  Game ──────────────── owns ──────────────────────  │
+│  Game ────────────────── owns ──────────────────  │
 │   ├── Renderer          (THREE.WebGLRenderer)       │
 │   ├── AssetStore        (GLTF, JSON, Audio, Tex)    │
 │   ├── InputManager      (KB + Mouse + Gamepad)      │
 │   └── NetworkManager    (Socket.IO client)          │
 │                                                     │
-│  Scene ─────────────── contains ─────────────────  │
+│  Scene ───────────────── contains ───────────────  │
 │   ├── THREE.Scene                                   │
 │   ├── RAPIER.World                                  │
 │   └── GameObject[]  ◄── tree hierarchy              │
@@ -459,14 +464,12 @@ Browser
 │                     ├── LightComponent   (THREE)    │
 │                     └── SoundComponent   (THREE)    │
 │                                                     │
-│  ECSY World ───────── runs ──────────────────────  │
-│   ├── PhysicsSystem    (Rapier step + sync)         │
-│   ├── MovementSystem   (input → velocity)           │
-│   ├── RenderSyncSystem (physics pos → THREE.Group)  │
-│   └── AudioSystem      (Howler + PositionalAudio)   │
-│                                                     │
-│  BVH Layer ────────── accelerates ───────────────  │
+│  BVH Layer ──────────── accelerates ─────────────  │
 │   └── three-mesh-bvh   (capsule sweep, raycasts)    │
+│                                                     │
+│  ECSY World — MANDATED for v1.0.0 ────────────────  │
+│   └── Games MUST use ECSY for ECS system structure   │
+│       (MovementSystem, CaptureSystem, etc.)           │
 │                                                     │
 └─────────────────────────────────────────────────────┘
           ▲                          ▲
@@ -543,12 +546,16 @@ PhysicsSystem.queries = {
 
 ```
 Client                            Server (20 Hz)
-  │── PLAYER_INPUT ──────────────►│
-  │                               │  world.step() (Rapier)
-  │◄───── WORLD_SNAPSHOT ─────────│  broadcast all entity states
+  │── PLAYER_INPUT (intent) ────▶│
+  │   { seq, forward, left,      │  world.step() (Rapier)
+  │     right, backward, jump,   │  broadcast all entity states
+  │     yaw, pitch, fire,        │
+  │     weaponId, slot,          │
+  │     origin, direction }      │
+  │◄───── WORLD_SNAPSHOT ───────│
   │  interpolate remote entities  │
   │  predict local player         │
-  │◄───── RECONCILE ──────────────│  correct mispredictions
+  │◄───── RECONCILE ────────────│  correct if delta > 0.5 units
 ```
 
 ---
@@ -592,10 +599,9 @@ Full third-party license texts are reproduced in [`LICENSE`](LICENSE).
 
 ---
 
-<div align="center">
+
 
 **Built with Three.js · Rapier · three-mesh-bvh · ECSY · Howler.js · Socket.IO**
 
-[Read the Docs](docs/00-overview.md) · [Engine API](docs/03-engine-api.md) · [Multiplayer](docs/04-multiplayer-socketio.md) · [Editor](docs/05-editor-react-vite.md) · [References](docs/08-references-and-resources.md)
+[Read the Docs](docs/00-overview.md) · [Engine API](docs/03-engine-api.md) · [Multiplayer](docs/04-multiplayer-socketio.md) · [Editor](docs/05-editor-react-vite.md) · [Example Game](docs/09-example-game.md) · [References](docs/08-references-and-resources.md)
 
-</div>

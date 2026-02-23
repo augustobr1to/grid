@@ -14,6 +14,8 @@ class Game {
   );
 
   // Async initialisation – MUST be called before loadScene()
+  // Note: named with underscore prefix to match the upstream reference repo.
+  // Alias `init()` may be used in future versions.
   _init(): Promise<void>;
 
   // Load a named scene (must match a key in game.json "scenes")
@@ -30,6 +32,7 @@ class Game {
   readonly renderer: Renderer;
   readonly inputManager: InputManager;
   readonly assetStore: AssetStore;
+  readonly networkManager: NetworkManager | null;
 }
 ```
 
@@ -70,7 +73,7 @@ interface InputOptions {
 }
 
 interface NetworkOptions {
-  serverURL?: string;   // e.g. "http://localhost:3000"
+  serverURL?: string;   // e.g. "http://localhost:3333"
   autoConnect?: boolean;
 }
 ```
@@ -104,6 +107,10 @@ class Scene {
 
   // Per-frame (called by Renderer loop)
   beforeRender(deltaTimeInSec: number): void;
+
+  // Apply the base server world snapshot (iterates snapshot.entities and updates positions).
+  // Games with custom schemas should process their extra fields in their own network listener.
+  applyWorldSnapshot(snapshot: WorldSnapshot): void;
 
   // Serialise current in-memory state back to SceneJSON
   toJSON(): SceneJSON;
@@ -295,14 +302,6 @@ interface SoundComponentJSON extends ComponentJSON {
 // soundComponent.playSound(delayInSec?, detune?)
 ```
 
-### `UserInterfaceComponent`
-```typescript
-interface UserInterfaceComponentJSON extends ComponentJSON {
-  type:      'userInterface';
-  assetPath: string;  // path to a UI-definition JSON
-}
-```
-
 ---
 
 ## `Renderer`
@@ -391,9 +390,25 @@ interface ColliderData {
   halfHeight?: number;                         // capsule, cylinder
   vertices?: Float32Array;                     // convexHull, trimesh
   indices?: Uint32Array;                       // trimesh
-  // ... (see full spec in RigidBodyComponent JSON section)
+  borderRadius?: number;                       // round* variants
 }
+
+type ColliderType =
+  | 'ball'
+  | 'capsule'
+  | 'cuboid'
+  | 'cylinder'
+  | 'cone'
+  | 'trimesh'
+  | 'heightfield'
+  | 'convexHull'
+  | 'roundCuboid'
+  | 'roundCylinder'
+  | 'roundCone'
+  | 'roundConvexHull';
 ```
+
+> **Asset note:** `CubeTextureAsset` (listed in the folder tree, `packages/engine/src/assets/CubeTextureAsset.ts`) handles six-face cube-map textures for skyboxes and environment mapping. It loads six images via `THREE.CubeTextureLoader` and returns a `THREE.CubeTexture`. It is not yet included in the `AssetStore` auto-detection by extension — consumers must call `assetStore.load('path/to/cubemap.json')` where the JSON contains the six face paths.
 
 ---
 

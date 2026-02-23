@@ -168,7 +168,7 @@ The original repository has no networking layer. The following are entirely new:
 | New file / folder | Description |
 |---|---|
 | `packages/engine/src/network/NetworkManager.ts` | Socket.IO client wrapper |
-| `packages/engine/src/network/Snapshot.ts` | Shared snapshot types |
+| `packages/shared/src/types.ts` | Shared snapshot types (`InputSnapshot`, `WorldSnapshot`, etc.) — moved out of `packages/engine` so both client and server can import without circular deps |
 | `packages/engine/src/network/Interpolator.ts` | Client-side snapshot interpolation |
 | `server/` | Authoritative game server (Express + Socket.IO + Rapier) |
 | `GameOptions.networkOptions` | New option field in engine types |
@@ -200,7 +200,7 @@ The original `Settings._getInitialSettings()` contained hardcoded VR bow-game se
 |---|---|---|---|
 | `three` | `^0.168.0` | `^0.168.0` | Unchanged |
 | `@dimforge/rapier3d-compat` | `^0.11.2` | `^0.11.2` | Unchanged |
-| `three-mesh-ui` | `^6.5.4` | `^6.5.4` | Unchanged |
+| `three-mesh-ui` | `^6.5.4` | **removed** | VR/3D-UI library; not needed for desktop FPS |
 | `react` | `^18.2.0` (devDep) | `^18.2.0` (dep of editor) | Moved to correct package |
 | `webpack` | `^5.88.2` | **removed** | Replaced by Vite |
 | `babel-*` | various | **removed** | Replaced by ts-jest + esbuild |

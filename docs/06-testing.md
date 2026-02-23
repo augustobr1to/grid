@@ -59,7 +59,7 @@ const config: Config = {
   preset:            'ts-jest',
   testEnvironment:   'jsdom',
   globalSetup:       './tests/setup/jestGlobalSetup.ts',
-  setupFilesAfterFramework: ['./tests/setup/jestSetupFile.ts'],
+  setupFiles: ['./tests/setup/jestSetupFile.ts'],
   roots:             ['<rootDir>/tests'],
   moduleNameMapper: {
     '^three$':                              '<rootDir>/tests/__mocks__/three.ts',
@@ -81,10 +81,14 @@ export default config;
 ### `jestGlobalSetup.ts`
 ```typescript
 // Run once before all test suites.
-// Rapier WASM must be initialised before any test that exercises physics.
+// By default Rapier is mocked, so this is a no-op for unit tests.
+// To enable real-Rapier integration tests, set REAL_RAPIER=true in the environment:
+//   REAL_RAPIER=true yarn test --testPathPattern=tests/engine/physics
 export default async function globalSetup() {
-  // No-op here because Rapier is mocked.
-  // If running real Rapier integration tests, call RAPIER.init() here.
+  if (process.env.REAL_RAPIER === 'true') {
+    const RAPIER = await import('@dimforge/rapier3d-compat');
+    await RAPIER.init();
+  }
 }
 ```
 

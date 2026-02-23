@@ -14,11 +14,34 @@
 │
 ├── tests/                        ← cross-package integration tests
 │   ├── setup/
-│   │   └── jestGlobalSetup.ts
+│   │   ├── jestGlobalSetup.ts
+│   │   └── jestSetupFile.ts
+│   ├── __mocks__/
+│   │   ├── three.ts
+│   │   └── @dimforge/
+│   │       └── rapier3d-compat.ts
 │   ├── engine/
 │   │   ├── Game.test.ts
 │   │   ├── Scene.test.ts
-│   │   └── GameObject.test.ts
+│   │   ├── GameObject.test.ts
+│   │   ├── Component.test.ts
+│   │   ├── assets/
+│   │   │   ├── AssetStore.test.ts
+│   │   │   ├── GLTFAsset.test.ts
+│   │   │   └── JSONAsset.test.ts
+│   │   ├── input/
+│   │   │   ├── InputManager.test.ts
+│   │   │   └── KeyboardHandler.test.ts
+│   │   ├── network/
+│   │   │   ├── NetworkManager.test.ts
+│   │   │   └── Interpolator.test.ts
+│   │   ├── physics/
+│   │   │   └── PhysicsHelpers.test.ts
+│   │   └── components/
+│   │       ├── ModelComponent.test.ts
+│   │       ├── RigidBodyComponent.test.ts
+│   │       ├── LightComponent.test.ts
+│   │       └── SoundComponent.test.ts
 │   └── multiplayer/
 │       └── NetworkManager.test.ts
 │
@@ -51,8 +74,7 @@
     │   │   │   ├── ModelComponent.ts
     │   │   │   ├── RigidBodyComponent.ts
     │   │   │   ├── LightComponent.ts
-    │   │   │   ├── SoundComponent.ts
-    │   │   │   └── UserInterfaceComponent.ts
+    │   │   │   └── SoundComponent.ts
     │   │   ├── input/
     │   │   │   ├── InputManager.ts
     │   │   │   ├── KeyboardHandler.ts
@@ -60,12 +82,12 @@
     │   │   │   └── GamepadHandler.ts
     │   │   ├── network/
     │   │   │   ├── NetworkManager.ts    ← Socket.IO client wrapper
-    │   │   │   ├── Snapshot.ts          ← snapshot types & serialisation
+    │   │   │   ├── Snapshot.ts          ← serialisation helpers (types are in @tge/shared)
     │   │   │   └── Interpolator.ts      ← client-side state interpolation
     │   │   ├── physics/
     │   │   │   └── PhysicsHelpers.ts
     │   │   ├── ui/
-    │   │   │   └── UIHelpers.ts
+    │   │   │   └── UIHelpers.ts          ← HTML overlay helpers (crosshair, HUD anchoring)
     │   │   ├── util/
     │   │   │   ├── CharacterController.ts
     │   │   │   ├── DynamicCharacterController.ts
@@ -78,7 +100,7 @@
     ├── game/                     ← example game (Vite app)
     │   ├── package.json
     │   ├── tsconfig.json
-    │   ├── vite.config.ts
+    │   ├── vite.config.js
     │   ├── index.html
     │   ├── public/               ← game assets (models, textures, audio, JSON)
     │   │   ├── game.json
@@ -86,8 +108,13 @@
     │   │   ├── types/
     │   │   └── assets/
     │   └── src/
-    │       ├── main.ts           ← creates Game, calls _init(), loadScene()
+    │       ├── main.js            ← creates Game, calls _init(), loadScene()
     │       └── controllers/      ← game-specific character controller subclasses
+    │
+    ├── shared/                   ← Shared networking types
+    │   ├── package.json
+    │   └── src/
+    │       └── types.ts          ← InputSnapshot, WorldSnapshot
     │
     └── editor/                   ← React + Vite scene editor
         ├── package.json
@@ -122,7 +149,7 @@
   "private": true,
   "packageManager": "yarn@3.6.3",
   "engines": { "node": "18.18.2" },
-  "workspaces": ["packages/*"],
+  "workspaces": ["packages/*"],  // packages/shared is automatically included (lives in packages/)
   "scripts": {
     "build":      "yarn workspaces foreach -A run build",
     "test":       "jest --config jest.config.ts",
@@ -156,11 +183,15 @@
     "lint":  "eslint src/**"
   },
   "dependencies": {
+    "@tge/shared": "workspace:*",
     "@dimforge/rapier3d-compat": "^0.11.2",
-    "events": "^3.3.0",
+    "ecsy": "^0.4.2",
+    "ecsy-three": "^0.0.13",
+    "events": "^3.3.0",                  // Node `events` polyfill for browser EventEmitter
+    "howler": "^2.2.0",
     "socket.io-client": "^4.7.0",
     "three": "^0.168.0",
-    "three-mesh-ui": "^6.5.4"
+    "three-mesh-bvh": "^0.7.0",
   },
   "devDependencies": {
     "typescript": "^5.2.2"
@@ -192,6 +223,29 @@
   }
 }
 ```
+
+---
+
+## `packages/shared/package.json`
+
+```json
+{
+  "name": "@tge/shared",
+  "version": "1.0.0",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc --project tsconfig.json"
+  },
+  "devDependencies": {
+    "typescript": "^5.2.2"
+  }
+}
+```
+
+> `@tge/shared` has zero runtime dependencies. It is a pure TypeScript type library consumed by `@tge/engine` (client-side) and `server/` (server-side).
 
 ---
 
@@ -295,7 +349,10 @@ export { default as NetworkManager } from './network/NetworkManager';
 // Re-exported underlying libraries (consumers should not install these separately)
 export * as THREE      from 'three';
 export { default as RAPIER }    from '@dimforge/rapier3d-compat';
-export * as ThreeMeshUI from 'three-mesh-ui';
+export { computeBoundsTree, disposeBoundsTree, acceleratedRaycast, MeshBVH, MeshBVHHelper } from 'three-mesh-bvh';
+export { Howl, Howler } from 'howler';
+export { World, System, Component as ECSYComponent, TagComponent, Types } from 'ecsy';
+export { ECSYThreeWorld, Object3DComponent } from 'ecsy-three';
 
 // Type-only exports
 export type { GameOptions, SceneJSON, GameObjectJSON, ComponentJSON } from './types';

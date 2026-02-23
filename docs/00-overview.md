@@ -2,13 +2,15 @@
 
 ## Purpose
 
-This project is a lightweight, TypeScript-first **3D game engine** for the web browser. It composes three well-maintained open-source libraries into a single coherent developer workflow:
+This project is a lightweight, TypeScript-first **3D game engine** for the web browser. It composes battle-tested open-source libraries into a single coherent developer workflow:
 
 | Library | Role |
 |---|---|
-| [Three.js](https://threejs.org) | 3D rendering via WebGL |
-| [@dimforge/rapier3d-compat](https://rapier.rs) | High-performance physics simulation (WASM) |
-| [three-mesh-ui](https://github.com/felixmariotto/three-mesh-ui) | In-world 3D UI panels |
+| [Three.js](https://threejs.org) | 3D rendering via WebGL — scene graph, lights, models, animations |
+| [@dimforge/rapier3d-compat](https://rapier.rs) | High-performance WASM physics — rigid bodies, character controller, colliders |
+| [three-mesh-bvh](https://github.com/gkjohnson/three-mesh-bvh) | BVH-accelerated raycasting — sub-ms FPS collision on complex geometry |
+| [Howler.js](https://howlerjs.com) | Music, UI audio, audio sprites |
+| [ECSY](https://ecsy.io) + [ecsy-three](https://github.com/ecsyjs/ecsy-three) | Entity-Component-System architecture **(mandated for v1.0.0)** |
 
 The engine is delivered as a **Yarn workspaces monorepo** containing three packages: the engine library itself (`packages/engine`), a playable example game (`packages/game`), and a visual scene/scenario editor (`packages/editor`).
 
@@ -39,7 +41,7 @@ The engine is delivered as a **Yarn workspaces monorepo** containing three packa
 
 - **Composition over inheritance** – GameObjects gain capabilities through *Components*, not deep class hierarchies.
 - **Data-driven scenes** – the full state of a scene is expressible as a plain JSON document; no scene logic belongs only in code.
-- **Zero lock-in to underlying libs** – Three.js, Rapier, and three-mesh-ui are re-exported from `packages/engine` so consumers never need to install them separately, but they are not hidden.
+- **Zero lock-in to underlying libs** – Three.js and Rapier are re-exported from `packages/engine` so consumers never need to install them separately, but they are not hidden.
 - **TypeScript everywhere** – the library builds with `tsc` and ships `.d.ts` files; the editor is also full TypeScript.
 - **Fail loudly** – invalid configurations throw descriptive errors at load time rather than producing silent visual bugs.
 
@@ -51,7 +53,10 @@ The engine is delivered as a **Yarn workspaces monorepo** containing three packa
 |---|---|---|
 | `three` | engine | `^0.168.0` |
 | `@dimforge/rapier3d-compat` | engine | `^0.11.2` |
-| `three-mesh-ui` | engine | `^6.5.4` |
+| `three-mesh-bvh` | engine | `^0.7.0` |
+| `howler` | engine | `^2.2.0` |
+| `ecsy` | engine | `^0.4.2` |
+| `ecsy-three` | engine | `^0.0.13` |
 | `socket.io-client` | engine | `^4.x` |
 | `socket.io` | server | `^4.x` |
 | `react` | editor | `^18.x` |

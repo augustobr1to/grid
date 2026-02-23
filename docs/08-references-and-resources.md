@@ -698,7 +698,7 @@ Is the sound attached to a world object (GameObject / entity)?
 ### Role in Grid Engine
 ECSY provides the **Entity-Component-System architecture** backbone. It separates data (Components) from logic (Systems) and enables efficient iteration over thousands of entities per frame. `ecsy-three` provides pre-built glue between ECSY entities and Three.js Object3D instances.
 
-**Note:** ECSY (the core) is **archived** — no longer actively developed by Mozilla — but it is **stable, complete, and production-worthy**. The architecture it describes is the pattern the engine follows. Alternative: consider **bitecs** (https://github.com/NateTheGreatt/bitECS) for higher performance via SharedArrayBuffer typed arrays.
+**Note:** ECSY (the core) is **archived** — no longer actively developed by Mozilla — but it is **stable, complete, and production-worthy**. **While archived, ECSY is strictly mandated for v1.0.0** to match the architecture diagrams. The architecture it describes is the pattern the engine follows. Alternative for future versions: consider **bitecs** (https://github.com/NateTheGreatt/bitECS) for higher performance via SharedArrayBuffer typed arrays.
 
 **Versions:** `ecsy ^0.4.2` · `ecsy-three ^0.0.13`
 
@@ -924,7 +924,7 @@ setInterval(() => {
 // ── CLIENT ──────────────────────────────────────────────────────
 import { io } from 'socket.io-client';
 
-const socket = io('http://localhost:3000', { autoConnect: false });
+const socket = io('http://localhost:3333', { autoConnect: false });
 socket.connect();
 socket.emit('JOIN_ROOM', { roomId: 'room-1' });
 socket.on('WORLD_SNAPSHOT', snapshot => interpolator.push(snapshot));

@@ -169,7 +169,8 @@ packages/game/
     │   │       ├── PlayerTag.js
     │   │       ├── LocalPlayerTag.js
     │   │       ├── EnemyTag.js
-    │   │       └── InArsenalTag.js
+    │   │       ├── InArsenalTag.js
+    │   │       └── DeadTag.js
     │   └── systems/             ← logic — no state
     │       ├── MovementSystem.js
     │       ├── PhysicsSyncSystem.js
@@ -336,7 +337,7 @@ const CITY_CONFIG = {
       Four thin BoxGeometry strips per building face.
       Emissive colour = neonColors[buildingIndex % 4].
       MeshBasicMaterial (always appears emissive — no lighting cost).
-8.  Place 10 capture-point ring indicators at route positions.
+8.  Place 12 capture-point ring indicators (2 uncapturable team bases and a chain of 10 capturable objectives between them).
 9.  Precompute base spawn clusters (dense grid inside each base zone)
     and mid-map spawn nodes (at road intersections).
 10. Merge all collideable geometry into one BufferGeometry;
@@ -478,7 +479,7 @@ Progress resumes the instant one team has zero players in range.
 
 ### Route chain
 
-The 10 points are arranged in a **connected chain**. Only the next point in the chain can be captured — the rest are locked. After each capture, the server unlocks the next point and emits `ROUTE_ADVANCED` to all clients.
+There are exactly 12 points: 2 uncapturable team bases (index 0 and 11) and a chain of 10 capturable objectives between them. Only the next capturable point in the chain can be captured — the rest are locked. After each capture, the server unlocks the next point and emits `ROUTE_ADVANCED` to all clients.
 
 The route order is randomised at the start of each new match (new seed).
 
@@ -500,7 +501,7 @@ Duration: 15 minutes (900 seconds)
 While active:
   - Leading team's active objective stays active (their match point).
   - A counter-objective is activated for the trailing team
-    (server picks the nearest fair uncaptured point).
+    (The uncaptured point with the shortest absolute world-space distance to the trailing team's base (B0 or R0)).
 
 End conditions:
   A. Leading team captures their match point first → match ends, leading team wins.
@@ -542,7 +543,7 @@ Players may join at any time during a running match. On `JOIN_ROOM`, the server 
 - Current match timer and Final Stand state (if active)
 - Current capture route and active point IDs
 
-The client spawns the player at their base and presents the Arsenal UI before releasing them into the match.
+Late-joining players spawn with coordinates directly inside their base's Arsenal trigger volume, immediately granting the `InArsenalTag` and automatically opening the UI before releasing them into the match.
 
 ### Lobby UI layout
 
@@ -702,10 +703,10 @@ Base → choose loadout + ammo budget
    → Decrement ammo locally (optimistic)
    → Play gunshot SFX (Howler)
    → Spawn tracer (BulletTracer pool)
-   → Emit FIRE to server: { weaponId, slot, origin, direction, clientTick }
+   → Set `fire: true` on next `InputSnapshot` (sent with `weaponId` and `slot`)
 ```
 
-### Server FIRE validation
+### Server FIRE validation (Processed in Input tick)
 
 ```typescript
 1. Look up the weapon definition.
@@ -713,8 +714,9 @@ Base → choose loadout + ammo budget
 3. Reject if ammo[slot] ≤ 0.
 4. Decrement server-side ammo.
 5. Set player.lastFiredAt = now.
-6. BVH raycast from origin along direction, max distance = weapon.range.
-7. For each hit player on the enemy team:
+6. Clamp input.origin to within 0.5 m of server-authoritative player position.
+7. BVH raycast from clamped origin along input.direction, max distance = weapon.range.
+8. For each hit player on the enemy team:
    a. Skip if target.shielded === true.
    b. Deduct weapon.damage from target.health.
    c. Emit HIT to all room clients.
@@ -825,7 +827,6 @@ All event name strings are defined as constants in `src/constants/Events.js` —
 |---|---|---|
 | `JOIN_ROOM` | `name`, `teamPref` | Join or create a match room |
 | `PLAYER_INPUT` | `InputSnapshot` | Sent every client frame |
-| `FIRE` | `weaponId`, `slot`, `origin`, `direction`, `clientTick` | Shoot intent |
 | `ARSENAL_EQUIP` | `srWeaponId`, `hrWeaponId`, `srRounds`, `hrRounds` | Confirm loadout selection |
 | `RESUPPLY_REQ` | `pointId` | Request ammo refill at owned point |
 | `LEAVE_ROOM` | — | Graceful disconnect |
@@ -861,7 +862,14 @@ interface InputSnapshot {
   jump:     boolean;
   yaw:      number;    // camera yaw in radians
   pitch:    number;    // camera pitch in radians
+  fire:     boolean;   // trigger intent this tick
+  weaponId: string;    // currently equipped weapon
+  slot:     'sr' | 'hr';// current active slot
+  origin:   [number, number, number]; // camera world position (clamped server-side)
+  direction:[number, number, number]; // normalised camera forward vector
 }
+
+> **Anti-cheat note:** `origin` is accepted from the client as a starting point for the ray but is **clamped** server-side to within `0.5 m` of the server's known player position before the raycast fires. This prevents position-spoofing while avoiding the 20 Hz latency error from using the server position directly.
 ```
 
 ### `WorldSnapshot` schema
@@ -869,7 +877,8 @@ interface InputSnapshot {
 ```typescript
 interface WorldSnapshot {
   tick:        number;
-  serverTime:  number;
+  timestamp:   number;
+  entities:    EntityState[];
   players:     PlayerSnap[];
   points:      PointSnap[];
   finalStand?: { endsAt: number; leadingTeam: string };
@@ -1025,7 +1034,7 @@ function sweep(origin, dx, dy, dz) {
 }
 ```
 
-### `public/types/capturePoint.json`
+### `public/types/capture_point.json`
 
 ```json
 {
@@ -1034,7 +1043,7 @@ function sweep(origin, dx, dy, dz) {
       "type": "rigidBody",
       "rigidBodyType": "fixed",
       "colliders": [
-        { "type": "cylinder", "halfHeight": 2, "radius": 8 }
+        { "type": "cylinder", "halfHeight": 2, "radius": 8, "sensor": true }
       ]
     }
   ]
@@ -1133,7 +1142,7 @@ Build in this order. Each phase is independently testable before moving to the n
 
 - [ ] Main menu: name input, team preference, settings panel, Play button
 - [ ] Lobby panel: player counts per team, map seed, match state, Join button
-- [ ] Late-join sends full state; player spawns immediately
+- [ ] Late-join sends full state; player spawns directly inside Arsenal trigger volume
 - [ ] `ROOM_FULL` message shown when server is at 64 players
 
 ### Phase 11 — Audio
