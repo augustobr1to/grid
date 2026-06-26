@@ -1,0 +1,20 @@
+{
+    "extends": "../../tsconfig.base.json",
+    "compilerOptions": {
+        "outDir": "dist",
+        "rootDir": "src",
+        "paths": {
+            "@thegridcn/shared": [
+                "../shared/src"
+            ]
+        }
+    },
+    "include": [
+        "src"
+    ],
+    "exclude": [
+        "src/**/__tests__/**",
+        "src/**/*.test.ts",
+        "src/**/*.test.tsx"
+    ]
+}

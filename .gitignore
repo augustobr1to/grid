@@ -1,0 +1,11 @@
+node_modules
+dist
+.DS_Store
+*.local
+.nx
+coverage
+pnpm-debug.log*
+.yarn/
+.pnp.*
+.yarnrc.yml
+yarn.lock

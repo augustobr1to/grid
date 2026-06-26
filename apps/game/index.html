@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Grid War — Grid Engine</title>
+  <meta name="description"
+    content="Grid War: a multiplayer first-person capture-the-point game built with Grid Engine." />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;600&display=swap"
+    rel="stylesheet" />
+  <style>
+    *,
+    *::before,
+    *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      overflow: hidden;
+      background: #050510;
+      font-family: 'Inter', -apple-system, sans-serif;
+      color: #e0e0ff;
+    }
+
+    /* ─── Overlay base ───────────────────────────────────────── */
+    .overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .overlay.hidden {
+      display: none;
+    }
+
+    /* ─── Panel ──────────────────────────────────────────────── */
+    .panel {
+      background: rgba(5, 5, 16, 0.94);
+      border: 1px solid rgba(68, 136, 255, 0.25);
+      border-radius: 12px;
+      backdrop-filter: blur(20px);
+      box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(68, 136, 255, 0.08);
+    }
+
+    /* ─── Neon text ──────────────────────────────────────────── */
+    .neon-text {
+      font-family: 'Orbitron', monospace;
+      color: #4488ff;
+      text-shadow: 0 0 12px rgba(68, 136, 255, 0.5), 0 0 40px rgba(68, 136, 255, 0.15);
+    }
+
+    .neon-text-red {
+      font-family: 'Orbitron', monospace;
+      color: #ff4444;
+      text-shadow: 0 0 12px rgba(255, 68, 68, 0.5);
+    }
+
+    /* ─── Button ─────────────────────────────────────────────── */
+    .btn-primary {
+      background: linear-gradient(135deg, #4488ff 0%, #00ff88 100%);
+      color: #050510;
+      font-family: 'Orbitron', monospace;
+      font-weight: 700;
+      font-size: 14px;
+      padding: 12px 28px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      transition: all 0.2s ease;
+    }
+
+    .btn-primary:hover {
+      transform: scale(1.04);
+      box-shadow: 0 0 24px rgba(68, 136, 255, 0.5);
+    }
+
+    /* ─── Input fields ───────────────────────────────────────── */
+    .field-label {
+      display: block;
+      color: #6070a0;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 6px;
+    }
+
+    .text-input {
+      width: 100%;
+      padding: 10px 14px;
+      background: #0a0a2e;
+      border: 1px solid #2a2a5e;
+      border-radius: 6px;
+      color: #e0e0ff;
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .text-input:focus {
+      border-color: #4488ff;
+    }
+
+    /* ─── Team buttons ───────────────────────────────────────── */
+    .team-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .team-btn {
+      flex: 1;
+      padding: 10px;
+      background: #0a0a2e;
+      border: 1px solid #2a2a5e;
+      border-radius: 6px;
+      color: #8090c0;
+      font-family: 'Orbitron', monospace;
+      font-size: 11px;
+      letter-spacing: 1px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .team-btn:hover {
+      border-color: #4488ff40;
+    }
+
+    .team-btn.active {
+      border-color: #4488ff;
+      color: #4488ff;
+      background: #0a0a3e;
+    }
+
+    #team-blue.active {
+      border-color: #4488ff;
+      color: #4488ff;
+    }
+
+    #team-red.active {
+      border-color: #ff4444;
+      color: #ff4444;
+    }
+
+    /* ─── Main menu ──────────────────────────────────────────── */
+    #main-menu .panel {
+      padding: 40px;
+      width: 400px;
+      text-align: center;
+    }
+
+    #main-menu h1 {
+      font-size: 36px;
+      margin-bottom: 4px;
+    }
+
+    #main-menu .subtitle {
+      color: #4060a0;
+      font-size: 12px;
+      margin-bottom: 32px;
+      letter-spacing: 1px;
+    }
+
+    #main-menu .field-group {
+      text-align: left;
+      margin-bottom: 16px;
+    }
+
+    #main-menu .team-group {
+      text-align: left;
+      margin-bottom: 24px;
+    }
+
+    /* ─── Arsenal ────────────────────────────────────────────── */
+    #arsenal-ui .panel {
+      padding: 28px;
+      width: 440px;
+    }
+
+    #arsenal-ui h2 {
+      font-size: 18px;
+      letter-spacing: 3px;
+      margin-bottom: 20px;
+    }
+
+    .weapon-section {
+      margin-bottom: 16px;
+    }
+
+    .weapon-select {
+      width: 100%;
+      padding: 8px 12px;
+      background: #0a0a2e;
+      border: 1px solid #2a2a5e;
+      border-radius: 6px;
+      color: #e0e0ff;
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      margin-top: 6px;
+      outline: none;
+    }
+
+    .weapon-select:focus {
+      border-color: #4488ff;
+    }
+
+    .ammo-slider {
+      width: 100%;
+      accent-color: #4488ff;
+      margin: 6px 0;
+    }
+
+    .ammo-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: #5060a0;
+    }
+
+    .weight-bar-wrap {
+      background: #0a0a2e;
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 16px;
+    }
+
+    .weight-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      margin-bottom: 6px;
+    }
+
+    .weight-label span:first-child {
+      color: #6070a0;
+    }
+
+    .weight-track {
+      width: 100%;
+      height: 6px;
+      background: #151530;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .weight-fill {
+      height: 100%;
+      background: #4488ff;
+      border-radius: 3px;
+      transition: width 0.2s, background 0.2s;
+    }
+
+    .weight-fill.over {
+      background: #ff4444;
+    }
+
+    /* ─── HUD ────────────────────────────────────────────────── */
+    #hud {
+      position: fixed;
+      bottom: 20px;
+      right: 24px;
+      z-index: 50;
+      pointer-events: none;
+      font-family: 'Orbitron', monospace;
+      font-size: 28px;
+    }
+
+    #hud-ammo-current {
+      color: #e0e0ff;
+    }
+
+    #hud-ammo-sep {
+      color: #3050a0;
+      margin: 0 4px;
+    }
+
+    #hud-ammo-reserve {
+      color: #3050a0;
+    }
+
+    /* ─── Crosshair ──────────────────────────────────────────── */
+    #crosshair {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 50;
+      pointer-events: none;
+      width: 20px;
+      height: 20px;
+    }
+
+    .ch-h,
+    .ch-v {
+      position: absolute;
+      background: rgba(255, 255, 255, 0.7);
+    }
+
+    .ch-h {
+      width: 20px;
+      height: 2px;
+      top: 50%;
+      left: 0;
+      transform: translateY(-50%);
+    }
+
+    .ch-v {
+      width: 2px;
+      height: 20px;
+      left: 50%;
+      top: 0;
+      transform: translateX(-50%);
+    }
+
+    /* ─── Kill feed ──────────────────────────────────────────── */
+    #kill-feed {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      z-index: 50;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .kill-entry {
+      font-size: 12px;
+      color: #c0c0e0;
+      background: rgba(0, 0, 0, 0.6);
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+
+    /* ─── Map overlay ────────────────────────────────────────── */
+    #map-overlay {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 60;
+      display: none;
+    }
+
+    #map-overlay .panel {
+      padding: 16px;
+    }
+
+    #map-overlay h3 {
+      font-family: 'Orbitron', monospace;
+      font-size: 12px;
+      color: #4488ff;
+      letter-spacing: 2px;
+    }
+
+    .map-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .map-hint {
+      color: #3050a0;
+      font-size: 11px;
+    }
+
+    #map-canvas {
+      border-radius: 4px;
+      border: 1px solid #1a1a3e;
+    }
+
+    .map-legend {
+      margin-top: 8px;
+      display: flex;
+      gap: 16px;
+      font-size: 11px;
+      color: #5060a0;
+    }
+
+    /* ─── Scoreboard ─────────────────────────────────────────── */
+    #scoreboard {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 70;
+      display: none;
+    }
+
+    #scoreboard .panel {
+      padding: 28px;
+      width: 500px;
+    }
+
+    #scoreboard h2 {
+      text-align: center;
+      font-size: 18px;
+      letter-spacing: 3px;
+      margin-bottom: 20px;
+    }
+
+    /* ─── Final Stand ────────────────────────────────────────── */
+    #final-stand {
+      position: fixed;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 50;
+      pointer-events: none;
+    }
+
+    #final-stand.hidden {
+      display: none;
+    }
+
+    #final-stand .panel {
+      padding: 10px 20px;
+      text-align: center;
+    }
+
+    .fs-label {
+      color: #ffcc00;
+      font-family: 'Orbitron', monospace;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+
+    #final-stand-timer {
+      font-family: 'Orbitron', monospace;
+      font-size: 24px;
+      color: #ffffff;
+      font-weight: 700;
+    }
+
+    /* ─── Match end ──────────────────────────────────────────── */
+    #match-end .panel {
+      padding: 40px;
+      text-align: center;
+    }
+
+    #match-result {
+      font-size: 32px;
+      letter-spacing: 6px;
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ═══ Main Menu ═══════════════════════════════════════════ -->
+  <div id="main-menu" class="overlay">
+    <div class="panel">
+      <h1 class="neon-text">GRID WAR</h1>
+      <div class="subtitle">A Grid Engine Prototype</div>
+
+      <div class="field-group">
+        <label class="field-label">Player Name</label>
+        <input id="player-name" type="text" value="Player" maxlength="16" class="text-input" />
+      </div>
+
+      <div class="team-group">
+        <label class="field-label">Team Preference</label>
+        <div class="team-row">
+          <button id="team-auto" class="team-btn active">AUTO</button>
+          <button id="team-blue" class="team-btn">BLUE</button>
+          <button id="team-red" class="team-btn">RED</button>
+        </div>
+      </div>
+
+      <button id="btn-play" class="btn-primary" style="width:100%">PLAY</button>
+    </div>
+  </div>
+
+  <!-- ═══ Arsenal ═════════════════════════════════════════════ -->
+  <div id="arsenal-ui" class="overlay hidden">
+    <div class="panel">
+      <h2 class="neon-text">ARSENAL</h2>
+
+      <div class="weapon-section">
+        <label class="field-label">Short Range</label>
+        <select id="sr-weapon" class="weapon-select">
+          <option value="smg">SYNTH SMG — 18 dmg, 12 Hz</option>
+          <option value="shotgun">CIRCUIT SHOTGUN — 14×8, 1.2 Hz</option>
+        </select>
+        <input id="sr-rounds" type="range" min="0" max="120" value="60" class="ammo-slider" />
+        <div class="ammo-meta">
+          <span>Rounds: <span id="sr-rounds-val">60</span></span>
+          <span>Weight: <span id="sr-weight">48.0</span></span>
+        </div>
+      </div>
+
+      <div class="weapon-section">
+        <label class="field-label">High Range</label>
+        <select id="hr-weapon" class="weapon-select">
+          <option value="rifle">LIGHTLINE RIFLE — 55 dmg, 2.5 Hz</option>
+          <option value="sniper">GRID SNIPER — 95 dmg, 0.6 Hz</option>
+        </select>
+        <input id="hr-rounds" type="range" min="0" max="50" value="10" class="ammo-slider" />
+        <div class="ammo-meta">
+          <span>Rounds: <span id="hr-rounds-val">10</span></span>
+          <span>Weight: <span id="hr-weight">30.0</span></span>
+        </div>
+      </div>
+
+      <div class="weight-bar-wrap">
+        <div class="weight-label">
+          <span>Total Weight</span>
+          <span id="total-weight">78 / 100</span>
+        </div>
+        <div class="weight-track">
+          <div id="weight-bar" class="weight-fill" style="width: 78%"></div>
+        </div>
+      </div>
+
+      <button id="btn-equip" class="btn-primary" style="width:100%">EQUIP LOADOUT</button>
+    </div>
+  </div>
+
+  <!-- ═══ HUD ═════════════════════════════════════════════════ -->
+  <div id="hud">
+    <span id="hud-ammo-current">30</span>
+    <span id="hud-ammo-sep">/</span>
+    <span id="hud-ammo-reserve">60</span>
+  </div>
+
+  <!-- ═══ Crosshair ═══════════════════════════════════════════ -->
+  <div id="crosshair">
+    <div class="ch-h"></div>
+    <div class="ch-v"></div>
+  </div>
+
+  <!-- ═══ Tactical Map ════════════════════════════════════════ -->
+  <div id="map-overlay">
+    <div class="panel">
+      <div class="map-header">
+        <h3>TACTICAL MAP</h3>
+        <span class="map-hint">[M] Close</span>
+      </div>
+      <canvas id="map-canvas" width="400" height="400"></canvas>
+      <div class="map-legend">
+        <span>◉ You</span>
+        <span>● Teammate</span>
+        <span>○ Enemy</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Scoreboard ══════════════════════════════════════════ -->
+  <div id="scoreboard">
+    <div class="panel">
+      <h2 class="neon-text">SCOREBOARD</h2>
+      <div id="score-content"></div>
+    </div>
+  </div>
+
+  <!-- ═══ Kill Feed ═══════════════════════════════════════════ -->
+  <div id="kill-feed"></div>
+
+  <!-- ═══ Final Stand ═════════════════════════════════════════ -->
+  <div id="final-stand" class="hidden">
+    <div class="panel">
+      <div class="fs-label">FINAL STAND</div>
+      <div id="final-stand-timer">15:00</div>
+    </div>
+  </div>
+
+  <!-- ═══ Match End ═══════════════════════════════════════════ -->
+  <div id="match-end" class="overlay hidden">
+    <div class="panel">
+      <div id="match-result" class="neon-text">VICTORY</div>
+      <button id="btn-lobby" class="btn-primary">RETURN TO LOBBY</button>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+
+</html>

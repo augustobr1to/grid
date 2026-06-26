@@ -1,0 +1,62 @@
+/**
+ * Interpolator unit tests — legacy suite, import-path and API fixed to match current module.
+ */
+import { Interpolator } from '../../packages/engine/src/Interpolator';
+
+const BASE_TRANSFORM = {
+    position: { x: 0, y: 0, z: 0 },
+    rotation: { x: 0, y: 0, z: 0, w: 1 },
+    scale: { x: 1, y: 1, z: 1 },
+};
+
+function makeSnap(id: string, timestamp: number, x: number) {
+    return { id, timestamp, transform: { ...BASE_TRANSFORM, position: { x, y: 0, z: 0 } } };
+}
+
+describe('Interpolator (legacy suite)', () => {
+    let interp: Interpolator;
+
+    beforeEach(() => {
+        interp = new Interpolator();
+    });
+
+    it('returns null with no snapshots', () => {
+        expect(interp.getTransform('e1', Date.now())).toBeNull();
+    });
+
+    it('returns transform from single snapshot', () => {
+        const now = Date.now();
+        interp.addSnapshot(makeSnap('e1', now - 200, 0));
+        const result = interp.getTransform('e1', now);
+        expect(result).not.toBeNull();
+        expect(result!.position.x).toBe(0);
+    });
+
+    it('interpolates position between two snapshots', () => {
+        interp.addSnapshot(makeSnap('e1', 1000, 0));
+        interp.addSnapshot(makeSnap('e1', 1200, 10));
+        // renderTime = serverNow - 100ms buffer → pass 1250 so renderTime = 1150 (midway)
+        const result = interp.getTransform('e1', 1250);
+        expect(result).not.toBeNull();
+        expect(result!.position.x).toBeCloseTo(7.5, 3);
+    });
+
+    it('returns null for unknown entity', () => {
+        interp.addSnapshot(makeSnap('e1', 1000, 0));
+        expect(interp.getTransform('unknown', Date.now())).toBeNull();
+    });
+
+    it('remove() clears a single entity buffer', () => {
+        interp.addSnapshot(makeSnap('e1', 1000, 0));
+        interp.remove('e1');
+        expect(interp.getTransform('e1', 1100)).toBeNull();
+    });
+
+    it('clear() removes all buffers', () => {
+        interp.addSnapshot(makeSnap('e1', 1000, 0));
+        interp.addSnapshot(makeSnap('e2', 1000, 5));
+        interp.clear();
+        expect(interp.getTransform('e1', 1100)).toBeNull();
+        expect(interp.getTransform('e2', 1100)).toBeNull();
+    });
+});

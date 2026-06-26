@@ -1,0 +1,26 @@
+{
+  "name": "@thegridcn/server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc --project tsconfig.json",
+    "start": "node dist/index.js",
+    "lint": "eslint src --max-warnings=0",
+    "test": "tsc --noEmit --project tsconfig.json"
+  },
+  "dependencies": {
+    "@colyseus/core": "^0.17.44",
+    "@colyseus/schema": "^4.0.26",
+    "@colyseus/ws-transport": "^0.17.13",
+    "@thegridcn/shared": "workspace:*",
+    "express": "^4.22.1"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.10.2",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}

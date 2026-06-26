@@ -1,0 +1,75 @@
+/**
+ * PhysicsHelpers unit tests.
+ */
+import { createColliderDesc, createRigidBodyDesc } from '../../packages/engine/src/physics/PhysicsHelpers';
+import type { ColliderData } from '../../packages/engine/src/types';
+
+describe('PhysicsHelpers', () => {
+    describe('createColliderDesc', () => {
+        it('creates a ball collider', () => {
+            const data: ColliderData = { type: 'ball', radius: 1.5 };
+            const desc = createColliderDesc(data);
+            expect(desc).toBeDefined();
+        });
+
+        it('creates a capsule collider', () => {
+            const data: ColliderData = { type: 'capsule', halfHeight: 0.5, radius: 0.35 };
+            const desc = createColliderDesc(data);
+            expect(desc).toBeDefined();
+        });
+
+        it('creates a cuboid collider', () => {
+            const data: ColliderData = { type: 'cuboid', hx: 1, hy: 2, hz: 3 };
+            const desc = createColliderDesc(data);
+            expect(desc).toBeDefined();
+        });
+
+        it('creates a cylinder collider', () => {
+            const data: ColliderData = { type: 'cylinder', halfHeight: 2, radius: 8 };
+            const desc = createColliderDesc(data);
+            expect(desc).toBeDefined();
+        });
+
+        it('creates a sensor collider', () => {
+            const data: ColliderData = { type: 'ball', radius: 1, sensor: true };
+            const desc = createColliderDesc(data);
+            expect(desc).toBeDefined();
+        });
+
+        it('throws on unknown collider type', () => {
+            const data = { type: 'invalid' } as any;
+            expect(() => createColliderDesc(data)).toThrow('Unknown collider type');
+        });
+
+        it('throws on trimesh without vertices', () => {
+            const data: ColliderData = { type: 'trimesh' };
+            expect(() => createColliderDesc(data)).toThrow('requires vertices');
+        });
+    });
+
+    describe('createRigidBodyDesc', () => {
+        it('creates a dynamic body', () => {
+            const desc = createRigidBodyDesc('dynamic');
+            expect(desc).toBeDefined();
+        });
+
+        it('creates a fixed body', () => {
+            const desc = createRigidBodyDesc('fixed');
+            expect(desc).toBeDefined();
+        });
+
+        it('creates a kinematicPositionBased body', () => {
+            const desc = createRigidBodyDesc('kinematicPositionBased');
+            expect(desc).toBeDefined();
+        });
+
+        it('creates a kinematicVelocityBased body', () => {
+            const desc = createRigidBodyDesc('kinematicVelocityBased');
+            expect(desc).toBeDefined();
+        });
+
+        it('throws on unknown body type', () => {
+            expect(() => createRigidBodyDesc('invalid')).toThrow('Unknown rigid body type');
+        });
+    });
+});

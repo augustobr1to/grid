@@ -1,0 +1,61 @@
+{
+  "name": "@thegridcn/workspace",
+  "private": true,
+  "packageManager": "pnpm@10.14.0",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "nx run-many -t build --all",
+    "dev:www": "nx run @thegridcn/www:dev",
+    "dev:server": "nx run @thegridcn/server:dev",
+    "dev:socketio-server": "nx run @thegridcn/socketio-server:dev",
+    "dev:game": "nx run @thegridcn/game:dev",
+    "dev:editor": "nx run @thegridcn/editor:dev",
+    "test": "nx run-many -t test --all",
+    "lint": "nx run-many -t lint --all",
+    "prepare": "husky",
+    "size": "size-limit"
+  },
+  "devDependencies": {
+    "@size-limit/preset-small-lib": "^11.0.0",
+    "@eslint/js": "^9.39.0",
+    "@types/jest": "29.5.14",
+    "eslint": "^9.39.0",
+    "globals": "^16.5.0",
+    "husky": "^9.1.7",
+    "jest-environment-jsdom": "^29.7.0",
+    "jest": "29.7.0",
+    "lint-staged": "^15.5.2",
+    "nx": "^23.0.1",
+    "size-limit": "^11.2.0",
+    "ts-jest": "29.1.1",
+    "typescript-eslint": "^8.46.0",
+    "typescript": "^5.9.3"
+  },
+  "pnpm": {
+    "overrides": {
+      "@microsoft/api-extractor": "^7.58.9",
+      "js-yaml": "^4.2.0"
+    }
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md}": [
+      "prettier --write"
+    ]
+  },
+  "size-limit": [
+    {
+      "path": "packages/engine/dist/index.mjs",
+      "limit": "800 kB"
+    }
+  ]
+}

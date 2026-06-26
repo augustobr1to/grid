@@ -1,0 +1,64 @@
+/**
+ * InputManager unit tests — legacy suite, import-path fixed to match current module layout.
+ */
+import { InputManager } from '../../packages/engine/src/InputManager';
+
+function keyEvent(type: 'keydown' | 'keyup', code: string): KeyboardEvent {
+    return new KeyboardEvent(type, { code, bubbles: true });
+}
+
+function mouseEvent(type: 'mousedown' | 'mouseup', button: number): MouseEvent {
+    return new MouseEvent(type, { button, bubbles: true });
+}
+
+describe('InputManager (legacy suite)', () => {
+    let target: EventTarget;
+    let im: InputManager;
+
+    beforeEach(() => {
+        target = new EventTarget();
+        im = new InputManager(target);
+        im.attach();
+    });
+
+    afterEach(() => {
+        im.detach();
+    });
+
+    it('instantiates without errors', () => {
+        expect(im).toBeDefined();
+    });
+
+    it('isKeyHeld returns true after keydown', () => {
+        target.dispatchEvent(keyEvent('keydown', 'KeyW'));
+        expect(im.isKeyHeld('KeyW')).toBe(true);
+    });
+
+    it('isKeyHeld returns false after keyup', () => {
+        target.dispatchEvent(keyEvent('keydown', 'KeyA'));
+        target.dispatchEvent(keyEvent('keyup', 'KeyA'));
+        expect(im.isKeyHeld('KeyA')).toBe(false);
+    });
+
+    it('isKeyJustPressed is true before flush, false after', () => {
+        target.dispatchEvent(keyEvent('keydown', 'Space'));
+        expect(im.isKeyJustPressed('Space')).toBe(true);
+        im.flush();
+        expect(im.isKeyJustPressed('Space')).toBe(false);
+    });
+
+    it('isKeyJustReleased is true before flush, false after', () => {
+        target.dispatchEvent(keyEvent('keydown', 'Space'));
+        target.dispatchEvent(keyEvent('keyup', 'Space'));
+        expect(im.isKeyJustReleased('Space')).toBe(true);
+        im.flush();
+        expect(im.isKeyJustReleased('Space')).toBe(false);
+    });
+
+    it('isMouseButtonHeld tracks buttons', () => {
+        target.dispatchEvent(mouseEvent('mousedown', 0));
+        expect(im.isMouseButtonHeld(0)).toBe(true);
+        target.dispatchEvent(mouseEvent('mouseup', 0));
+        expect(im.isMouseButtonHeld(0)).toBe(false);
+    });
+});

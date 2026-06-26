@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "experimentalDecorators": true,
+    "useDefineForClassFields": false,
+    "baseUrl": ".",
+    "paths": {
+      "@thegridcn/engine": ["packages/engine/src/index.ts"],
+      "@thegridcn/engine/*": ["packages/engine/src/*"],
+      "@thegridcn/shared": ["packages/shared/src/index.ts"],
+      "@thegridcn/shared/*": ["packages/shared/src/*"]
+    }
+  }
+}

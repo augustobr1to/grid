@@ -7,18 +7,45 @@
   ╚═════╝ ╚═╝  ╚═╝╚═╝╚═════╝
 ```
 
-**An AI-built TypeScript game engine for 3D First-Person multiplayer games.**
+**Browser-first 3D game engine foundation for React, Three.js, shaders, and multiplayer games.**
 
-Powered by **Three.js** · **Rapier** · **three-mesh-bvh** · **ECSY** · **Socket.IO**
+Powered by **React** · **Three.js** · **Rapier** · **three-mesh-bvh** · **Colyseus** · **Vite** · **pnpm** · **Nx**
 
-[![Node 18.18.2](https://img.shields.io/badge/node-18.18.2-brightgreen?logo=node.js)](https://nodejs.org)
-[![Yarn 3.6.3](https://img.shields.io/badge/yarn-3.6.3-blue?logo=yarn)](https://yarnpkg.com)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.2-blue?logo=typescript)](https://www.typescriptlang.org)
+[![Node 22](https://img.shields.io/badge/node-22-brightgreen?logo=node.js)](https://nodejs.org)
+[![pnpm 10](https://img.shields.io/badge/pnpm-10-orange?logo=pnpm)](https://pnpm.io)
+[![Nx](https://img.shields.io/badge/Nx-monorepo-blue)](https://nx.dev)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue?logo=typescript)](https://www.typescriptlang.org)
 [![Three.js](https://img.shields.io/badge/Three.js-r168-black?logo=three.js)](https://threejs.org)
 [![Rapier](https://img.shields.io/badge/Rapier-0.11-orange)](https://rapier.rs)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 </div>
+
+---
+
+## Current Stack
+
+This repo now uses `mise` for Node/pnpm versions, `pnpm` workspaces, and `Nx` for monorepo task orchestration.
+
+```bash
+pnpm install
+pnpm build
+pnpm test
+pnpm dev:www
+pnpm dev:server
+```
+
+Workspace highlights:
+
+- `apps/www`: React + Vite engine landing page with shadcn-compatible structure and live Three.js shader preview.
+- `apps/server`: Colyseus authoritative multiplayer server on `ws://localhost:2567`.
+- `apps/socketio-server`: legacy Socket.IO authoritative server kept for compatibility.
+- `apps/editor`: React + Vite scene editor.
+- `apps/game`: existing Vite browser game example.
+- `packages/engine`: Three.js/Rapier runtime, shader materials, asset loading, input, legacy Socket.IO, and Colyseus client manager.
+- `packages/shared`: shared multiplayer protocol types.
+
+`mise exec` requires trusting this repo config first: `mise trust`.
 
 ---
 
@@ -62,9 +89,9 @@ Powered by **Three.js** · **Rapier** · **three-mesh-bvh** · **ECSY** · **Soc
 - ⚡ **BVH collision** — `three-mesh-bvh` capsule sweeps give sub-millisecond player vs. world collision on high-poly levels
 - 🧱 **ECS architecture** — `ECSY` separates data (Components) from logic (Systems); no deep inheritance hierarchies
 - 🔊 **Dual audio system** — `Howler.js` for music/SFX sprites + Three.js `PositionalAudio` for in-world spatial sound
-- 🌐 **Multiplayer ready** — Socket.IO authoritative server with client prediction, snapshot interpolation, and reconciliation
+- 🌐 **Multiplayer ready** — Colyseus authoritative server plus legacy Socket.IO compatibility path
 - 🖊️ **Visual editor** — React + Vite scene editor with live hot-reload viewport, inspector, and transform gizmo
-- 📦 **Yarn workspaces monorepo** — `packages/engine`, `packages/game`, `packages/editor`, `server/`
+- 📦 **pnpm + Nx monorepo** — deployables in `apps/*`, reusable libraries in `packages/*`
 - 🦺 **TypeScript first** — strict types throughout; engine ships `.d.ts` declaration files
 - ✅ **Tested** — Jest (engine), Vitest (editor/game), with Three.js and Rapier mocked for Node.js
 
@@ -100,53 +127,54 @@ curl https://mise.run | sh
 git clone https://github.com/your-org/grid-engine.git
 cd grid-engine
 
-# Activate pinned Node 18.18.2 + Yarn 3.6.3
+# Activate pinned Node 22 + pnpm 10
 mise trust && mise install
 
 # Verify versions
-node --version   # v18.18.2
-yarn --version   # 3.6.3
+node --version
+pnpm --version
 
 # Install all workspace dependencies
-yarn install
+pnpm install
 ```
 
 ### Run the Example Game
 
 ```bash
-yarn dev:game
+pnpm dev:game
 # → http://localhost:5173
 ```
 
 ### Run the Scene Editor
 
 ```bash
-yarn dev:editor
+pnpm dev:editor
 # → http://localhost:5174
-# Click "Open Project" and select the packages/game/public folder
+# Click "Open Project" and select the apps/game/public folder
 ```
 
 ### Run the Multiplayer Server
 
 ```bash
-cd server
-npm install
-npm run dev
+pnpm dev:server
+# → ws://localhost:2567
+
+# Legacy Socket.IO server:
+pnpm dev:socketio-server
 # → ws://localhost:3333
 ```
 
 ### Run All Tests
 
 ```bash
-yarn test          # Jest – engine unit + integration tests
-yarn test:editor   # Vitest – editor React component tests
+pnpm test
 ```
 
 ### Build Everything
 
 ```bash
-yarn build
-# builds packages/engine (tsc), packages/game (vite), packages/editor (vite)
+pnpm build
+# builds Nx projects in apps/* and packages/*
 ```
 
 ---
@@ -157,11 +185,23 @@ yarn build
 grid-engine/
 │
 ├── .gitignore
-├── .yarnrc.yml               ← nodeLinker: node-modules
-├── mise.toml                 ← pins Node 18.18.2 + Yarn 3.6.3
+├── mise.toml                 ← pins Node + pnpm
+├── nx.json                   ← Nx task graph config
 ├── package.json              ← workspace root
+├── pnpm-workspace.yaml       ← workspace globs
 ├── tsconfig.base.json        ← shared TypeScript config
 ├── LICENSE                   ← MIT — see third-party notices inside
+│
+├── apps/
+│   ├── www/                  ← landing page (@thegridcn/www)
+│   ├── server/               ← Colyseus server (@thegridcn/server)
+│   ├── socketio-server/      ← legacy Socket.IO server (@thegridcn/socketio-server)
+│   ├── editor/               ← scene editor (@thegridcn/editor)
+│   └── game/                 ← browser game example (@thegridcn/game)
+│
+├── packages/
+│   ├── engine/               ← reusable engine library (@thegridcn/engine)
+│   └── shared/               ← shared protocol types (@thegridcn/shared)
 │
 ├── docs/                     ← 📖 full specification documents (start here)
 │   ├── 00-overview.md
@@ -175,98 +215,19 @@ grid-engine/
 │   ├── 08-references-and-resources.md
 │   └── 09-example-game.md
 │
-├── tests/                    ← Jest cross-package tests
-│   ├── setup/
-│   │   ├── jestGlobalSetup.ts
-│   │   └── jestSetupFile.ts
-│   ├── __mocks__/
-│   │   ├── three.ts
-│   │   └── @dimforge/rapier3d-compat.ts
-│   └── engine/
-│       ├── Game.test.ts
-│       ├── Scene.test.ts
-│       ├── GameObject.test.ts
-│       ├── assets/
-│       ├── components/
-│       ├── input/
-│       ├── network/
-│       └── physics/
-│
-├── packages/
-│   ├── engine/               ← 📦 publishable library (@tge/engine)
-│   │   ├── package.json
-│   │   ├── tsconfig.json
-│   │   ├── src/
-│   │   │   ├── index.ts      ← public API barrel
-│   │   │   ├── Game.ts
-│   │   │   ├── Scene.ts
-│   │   │   ├── GameObject.ts
-│   │   │   ├── Component.ts
-│   │   │   ├── Renderer.ts
-│   │   │   ├── Settings.ts
-│   │   │   ├── Logger.ts
-│   │   │   ├── Util.ts
-│   │   │   ├── assets/
-│   │   │   ├── components/
-│   │   │   ├── input/
-│   │   │   ├─�� network/
-│   │   │   ├── physics/
-│   │   │   ├── ui/
-│   │   │   └── util/
-│   │   └── dist/             ← tsc output (git-ignored)
-│   │
-│   ├── game/                 ← 🎮 example first-person game (@tge/game)
-│   │   ├── package.json
-│   │   ├── vite.config.js
-│   │   ├── index.html
-│   │   ├── public/           ← game assets + JSON data files
-│   │   │   ├── game.json
-│   │   │   ├── scenes/
-│   │   │   ├── types/
-│   │   │   └── assets/
-│   │   └── src/
-│   │       └── main.js
-│   │
-│   ├── shared/               ← 🔗 shared networking types (@tge/shared)
-│   │   ├── package.json
-│   │   └── src/
-│   │       └── types.ts      ← InputSnapshot, WorldSnapshot (used by engine + server)
-│   │
-│   └── editor/               ← 🖊️ React + Vite scene editor (@tge/editor)
-│       ├── package.json
-│       ├── vite.config.ts
-│       ├── index.html
-│       └── src/
-│           ├── main.tsx
-│           ├── App.tsx
-│           ├── store/
-│           ├── components/
-│           │   ├── Toolbar/
-│           │   ├── SceneGraph/
-│           │   ├── Viewport/
-│           │   └── Inspector/
-│           └── hooks/
-│
-└── server/                   ← 🌐 Socket.IO multiplayer server (standalone)
-    ├── package.json
-    ├── tsconfig.json
-    └── src/
-        ├── index.ts
-        ├── GameRoom.ts
-        ├── RoomManager.ts
-        └── Snapshot.ts
+└── tests/                    ← Jest cross-package tests and mocks
 ```
 
 ---
 
 ## Packages
 
-### `packages/engine` — `@tge/engine`
+### `packages/engine` — `@thegridcn/engine`
 
 The publishable library. Import it in any project:
 
 ```typescript
-import { Game, Scene, GameObject } from '@tge/engine';
+import { Game, Scene, GameObject } from '@thegridcn/engine';
 
 const game = new Game('/assets', {
   rendererOptions: { setupFullScreenCanvas: true },
@@ -299,24 +260,24 @@ See [`docs/03-engine-api.md`](docs/03-engine-api.md) for the full TypeScript API
 
 ---
 
-### `packages/game` — Example Game
+### `apps/game` — Example Game
 
 A complete Vite app demonstrating the engine in a playable first-person scenario. Use this as a reference for wiring up the engine in your own project.
 
 ```bash
-yarn workspace @tge/game dev      # development server
-yarn workspace @tge/game build    # production build
+pnpm nx run @thegridcn/game:dev      # development server
+pnpm nx run @thegridcn/game:build    # production build
 ```
 
 ---
 
-### `packages/editor` — Scene Editor
+### `apps/editor` — Scene Editor
 
 A React + Vite visual editor for creating and editing scenes without touching JSON directly. Opens a project folder from disk via the File System Access API, shows a live Three.js viewport, and writes changes back to JSON in real time.
 
 ```bash
-yarn workspace @tge/editor dev    # development server → http://localhost:5174
-yarn workspace @tge/editor build  # production static build
+pnpm nx run @thegridcn/editor:dev    # development server → http://localhost:5174
+pnpm nx run @thegridcn/editor:build  # production static build
 ```
 
 **Editor features:**
@@ -329,15 +290,13 @@ yarn workspace @tge/editor build  # production static build
 
 ---
 
-### `server/` — Multiplayer Server
+### `apps/server` — Multiplayer Server
 
-An Express + Socket.IO authoritative game server. Runs a headless Rapier physics simulation, accepts player input from clients, and broadcasts world-state snapshots at 20 Hz.
+Primary Colyseus authoritative game server. Legacy Socket.IO server remains at `apps/socketio-server` for compatibility.
 
 ```bash
-cd server
-npm run dev     # tsx watch (development)
-npm run build   # tsc (production)
-npm start       # node dist/index.js
+pnpm nx run @thegridcn/server:dev
+pnpm nx run @thegridcn/socketio-server:dev
 ```
 
 ---
@@ -349,36 +308,36 @@ npm start       # node dist/index.js
 ```toml
 # mise.toml
 [tools]
-node = "18.18.2"
-yarn = "3.6.3"
+node = "22"
+pnpm = "10.14.0"
 ```
 
 ```bash
 mise trust && mise install   # installs exact versions
 ```
 
-### Package Manager — Yarn 3.6.3 (Berry)
+### Package Manager — pnpm 10
 
 ```yaml
-# .yarnrc.yml
-nodeLinker: node-modules
+# pnpm-workspace.yaml
+packages:
+  - "apps/*"
+  - "packages/*"
 ```
-
-> `node-modules` linker is required for WASM packages (Rapier) and packages that rely on `__dirname`.
 
 ### Build — TypeScript + Vite
 
 | Package | Build command | Output |
 |---|---|---|
-| `packages/engine` | `tsc --project tsconfig.json` | `packages/engine/dist/` |
-| `packages/game` | `vite build` | `packages/game/dist/` |
-| `packages/editor` | `vite build` | `packages/editor/dist/` |
+| `packages/engine` | `vite build` | `packages/engine/dist/` |
+| `apps/game` | `vite build` | `apps/game/dist/` |
+| `apps/editor` | `vite build` | `apps/editor/dist/` |
+| `apps/server` | `tsc --project tsconfig.json` | `apps/server/dist/` |
 
 ### Linting
 
 ```bash
-yarn lint            # ESLint across all packages
-yarn lint:fix        # ESLint with --fix
+pnpm lint            # Nx lint where targets exist
 ```
 
 ---
@@ -398,7 +357,8 @@ All design decisions, architecture specs, and implementation guides live in [`do
 | [`docs/06-testing.md`](docs/06-testing.md) | Test strategy, folder layout, Jest + ts-jest config, Three.js and Rapier mocks, key test cases, CI commands |
 | [`docs/07-migration-notes.md`](docs/07-migration-notes.md) | Every change vs. the reference repo — VR removal, monorepo conversion, Webpack→Vite migration, test reorganisation, multiplayer addition |
 | [`docs/08-references-and-resources.md`](docs/08-references-and-resources.md) | Complete library reference for all dependencies — official docs, best internet resources, API cheatsheets |
-| [`docs/09-example-game.md`](docs/09-example-game.md) | Grid War: full design and implementation spec for the reference FPS game in `packages/game` |
+| [`docs/09-example-game.md`](docs/09-example-game.md) | Grid War: full design and implementation spec for the reference FPS game in `apps/game` |
+| [`docs/10-current-workspace.md`](docs/10-current-workspace.md) | Current pnpm/Nx workspace layout and project boundary rules |
 
 ---
 
@@ -408,34 +368,29 @@ Run from the **repo root** unless noted.
 
 ```bash
 # ── Development ──────────────────────────────────────────────────
-yarn dev:game          # Vite dev server for the example game (port 5173)
-yarn dev:editor        # Vite dev server for the scene editor (port 5174)
+pnpm dev:game          # Vite dev server for the example game (port 5173)
+pnpm dev:editor        # Vite dev server for the scene editor (port 5174)
+pnpm dev:www           # Landing page (port 5172)
+pnpm dev:server        # Colyseus server (port 2567)
 
 # ── Build ────────────────────────────────────────────────────────
-yarn build             # Build all workspaces (engine tsc + game vite + editor vite)
-yarn workspace @tge/engine  build   # Build engine only
-yarn workspace @tge/game    build   # Build game only
-yarn workspace @tge/editor  build   # Build editor only
+pnpm build             # Build all Nx projects
+pnpm nx run @thegridcn/engine:build
+pnpm nx run @thegridcn/game:build
+pnpm nx run @thegridcn/editor:build
 
 # ── Test ─────────────────────────────────────────────────────────
-yarn test              # Jest – all engine unit + integration tests
-yarn test --coverage   # With coverage report
-yarn test --watch      # Watch mode (development)
-yarn test:editor       # Vitest – editor React component tests
-yarn test:game         # Vitest – game integration tests
+pnpm test              # Run Nx test targets
 
 # ── Lint ─────────────────────────────────────────────────────────
-yarn lint              # ESLint all workspaces
-yarn lint:fix          # ESLint with auto-fix
+pnpm lint              # Run Nx lint targets where configured
 
-# ── Multiplayer server (from server/) ────────────────────────────
-cd server && npm run dev      # tsx watch (port 3333)
-cd server && npm run build    # tsc
-cd server && npm start        # node dist/index.js
+# ── Multiplayer servers ──────────────────────────────────────────
+pnpm dev:server              # Colyseus (port 2567)
+pnpm dev:socketio-server     # Legacy Socket.IO (port 3333)
 
 # ── Utilities ────────────────────────────────────────────────────
-yarn workspaces foreach -A run build   # Run build in all workspaces sequentially
-yarn workspaces foreach -Ap run build  # Run build in all workspaces in parallel
+pnpm nx show projects        # List Nx projects
 ```
 
 ---
@@ -476,7 +431,7 @@ Browser
           │ Socket.IO                │ File System
           ▼                          ▼ Access API
    Multiplayer Server          Scene Editor (React)
-   (Express + Rapier)          (packages/editor)
+   (Colyseus/Rapier)          (apps/editor)
 ```
 
 ---
@@ -564,11 +519,11 @@ Client                            Server (20 Hz)
 
 1. Fork the repository
 2. Create a feature branch: `git checkout -b feat/my-feature`
-3. Install dependencies: `mise install && yarn install`
+3. Install dependencies: `mise install && pnpm install`
 4. Make changes — follow the patterns described in [`docs/01-architecture.md`](docs/01-architecture.md)
 5. Add tests — see [`docs/06-testing.md`](docs/06-testing.md)
-6. Ensure all tests pass: `yarn test`
-7. Ensure no lint errors: `yarn lint`
+6. Ensure all tests pass: `pnpm test`
+7. Ensure no lint errors: `pnpm lint`
 8. Open a Pull Request against `main`
 
 ### Commit Convention
@@ -604,4 +559,3 @@ Full third-party license texts are reproduced in [`LICENSE`](LICENSE).
 **Built with Three.js · Rapier · three-mesh-bvh · ECSY · Howler.js · Socket.IO**
 
 [Read the Docs](docs/00-overview.md) · [Engine API](docs/03-engine-api.md) · [Multiplayer](docs/04-multiplayer-socketio.md) · [Editor](docs/05-editor-react-vite.md) · [Example Game](docs/09-example-game.md) · [References](docs/08-references-and-resources.md)
-

@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    "types": ["node"],
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "paths": {
+      "@thegridcn/shared": ["../../packages/shared/dist/index.d.ts"]
+    }
+  },
+  "include": ["src"]
+}

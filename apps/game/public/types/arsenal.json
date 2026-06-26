@@ -1,0 +1,16 @@
+{
+    "components": [
+        {
+            "type": "rigidBody",
+            "rigidBodyType": "fixed",
+            "colliders": [
+                {
+                    "type": "cylinder",
+                    "halfHeight": 2,
+                    "radius": 5,
+                    "sensor": true
+                }
+            ]
+        }
+    ]
+}
