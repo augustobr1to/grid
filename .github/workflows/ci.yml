@@ -66,3 +66,7 @@ jobs:
       # size-limit reads packages/engine/dist/index.mjs, produced by the build above.
       - name: Size limit
         run: pnpm size
+
+      # Enforce the engine coverage floor (thresholds in jest.config.js).
+      - name: Coverage gate
+        run: pnpm test:coverage

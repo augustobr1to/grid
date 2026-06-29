@@ -11,6 +11,7 @@ export default [
       '**/.yarn/**',
       '**/.remember/**',
       'docs/api/**',
+      'coverage/**',
       'tests/__mocks__/**',
     ],
   },
