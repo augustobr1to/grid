@@ -14,11 +14,8 @@ export { default as DynamicCharacterController } from './util/DynamicCharacterCo
 export { default as EventEmitter } from './util/EventEmitter';
 export { generateId, deepMerge, clamp } from './Util';
 
-export { default as NetworkManager } from './network/NetworkManager';
 export { default as ColyseusNetworkManager } from './network/ColyseusNetworkManager';
 export { default as Interpolator } from './network/Interpolator';
-export { NetworkManager as SocketIOClockClient } from './NetworkManager';
-export type { NetworkEventMap } from './NetworkManager';
 
 export { default as InputManager } from './input/InputManager';
 export { InputManager as DOMInputManager } from './InputManager';

@@ -7,7 +7,6 @@ import Renderer from './Renderer';
 import Scene from './Scene';
 import AssetStore from './assets/AssetStore';
 import InputManager from './input/InputManager';
-import NetworkManager from './network/NetworkManager';
 import ColyseusNetworkManager from './network/ColyseusNetworkManager';
 import GameObject from './GameObject';
 import Logger from './Logger';
@@ -16,7 +15,6 @@ export default class Game {
     readonly renderer: Renderer;
     readonly assetStore: AssetStore;
     readonly inputManager: InputManager;
-    readonly networkManager: NetworkManager | null;
     readonly colyseusNetworkManager: ColyseusNetworkManager | null;
     scene: Scene | null = null;
     _baseURLorDirHandle: string | FileSystemDirectoryHandle;
@@ -44,13 +42,7 @@ export default class Game {
         // Connect input manager to canvas
         this.inputManager.setCanvas(this.renderer.getCanvas());
 
-        // Network manager
-        if (options?.networkOptions) {
-            this.networkManager = new NetworkManager(options.networkOptions);
-        } else {
-            this.networkManager = null;
-        }
-
+        // Multiplayer transport — Colyseus is the sole authoritative network manager.
         if (options?.colyseusOptions) {
             this.colyseusNetworkManager = new ColyseusNetworkManager(options.colyseusOptions);
         } else {

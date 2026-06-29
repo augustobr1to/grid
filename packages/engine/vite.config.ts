@@ -23,7 +23,6 @@ export default defineConfig({
         "@thegridcn/shared",
         "colyseus.js",
         "howler",
-        "socket.io-client",
         "three",
         "three-mesh-bvh",
       ],

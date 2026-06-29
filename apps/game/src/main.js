@@ -14,7 +14,7 @@ import {
 import CityGenerator from './map/CityGenerator.js';
 import CapturePoint from './map/CapturePoint.js';
 import SpawnNode from './map/SpawnNode.js';
-import SocketClient from './net/SocketClient.js';
+import ColyseusClient from './net/ColyseusClient.js';
 import SnapshotBuffer from './net/SnapshotBuffer.js';
 import BulletTracerPool from './weapons/BulletTracer.js';
 import { getWeapon } from './weapons/WeaponRegistry.js';
@@ -38,7 +38,6 @@ const game = new Game('', {
         beforeRender: onBeforeRender,
     },
     inputOptions: { wsadMovement: true, mouseOptions: { usePointerLock: true } },
-    networkOptions: { serverURL: 'http://localhost:3333', autoConnect: false },
 });
 
 // ─── Client state ───────────────────────────────────────────────────────────
@@ -111,7 +110,7 @@ async function onPlayClicked(playerName, teamPref) {
     setState('LOADING');
 
     // Init networking
-    socketClient = new SocketClient(game.networkManager);
+    socketClient = new ColyseusClient();
     snapshotBuffer = new SnapshotBuffer(100);
 
     localTeam = teamPref || 'blue';
@@ -276,6 +275,9 @@ function setupNetworkListeners() {
 
 // ─── Remote players ─────────────────────────────────────────────────────────
 function createRemotePlayerMesh(id) {
+    // Guard against double-creation: a WORLD_SNAPSHOT can lazily create a mesh
+    // before PLAYER_JOINED fires, which would otherwise orphan the first mesh.
+    if (remotePlayers.has(id)) return;
     const geo = new THREE.CapsuleGeometry(CAPSULE_RADIUS, CAPSULE_HALF_HEIGHT * 2, 4, 8);
     const mat = new THREE.MeshBasicMaterial({ color: 0x888888 });
     const mesh = new THREE.Mesh(geo, mat);

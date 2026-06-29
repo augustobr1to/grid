@@ -13,7 +13,6 @@
     "build": "nx run-many -t build --all",
     "dev:www": "nx run @thegridcn/www:dev",
     "dev:server": "nx run @thegridcn/server:dev",
-    "dev:socketio-server": "nx run @thegridcn/socketio-server:dev",
     "dev:game": "nx run @thegridcn/game:dev",
     "dev:editor": "nx run @thegridcn/editor:dev",
     "test": "nx run-many -t test --all",

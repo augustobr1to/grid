@@ -3,6 +3,7 @@ import { MapSchema, Schema, type } from '@colyseus/schema';
 export class PlayerState extends Schema {
   @type('string') id = '';
   @type('string') name = '';
+  @type('string') team = 'blue';
   @type('number') x = 0;
   @type('number') y = 1.7;
   @type('number') z = 0;

@@ -9,6 +9,7 @@ const MAX_PLAYERS = 32;
 export class GridRoom extends Room<{ state: GridRoomState }> {
   maxClients = MAX_PLAYERS;
   private readonly pendingInputs = new Map<string, InputSnapshot>();
+  private readonly clientsById = new Map<string, Client>();
 
   onCreate(): void {
     this.setState(new GridRoomState());
@@ -20,20 +21,28 @@ export class GridRoom extends Room<{ state: GridRoomState }> {
       if (!player || input.seq <= player.lastProcessedSeq) return;
       this.pendingInputs.set(client.sessionId, input);
     });
+
+    // Loadout / resupply: accepted but unsimulated for now (parity with prior
+    // server). Registered as no-ops so Colyseus does not warn on these messages.
+    this.onMessage('ARSENAL_EQUIP', () => {});
+    this.onMessage('RESUPPLY_REQ', () => {});
   }
 
-  onJoin(client: Client, options: { name?: string } = {}): void {
+  onJoin(client: Client, options: { name?: string; team?: string } = {}): void {
     const player = new PlayerState();
     player.id = client.sessionId;
     player.name = options.name?.slice(0, 32) || `Player ${client.sessionId.slice(0, 6)}`;
+    player.team = options.team === 'red' ? 'red' : 'blue';
     player.x = (this.state.players.size % 8) * 2;
     player.z = Math.floor(this.state.players.size / 8) * 2;
     this.state.players.set(client.sessionId, player);
+    this.clientsById.set(client.sessionId, client);
   }
 
   onLeave(client: Client): void {
     this.pendingInputs.delete(client.sessionId);
     this.state.players.delete(client.sessionId);
+    this.clientsById.delete(client.sessionId);
   }
 
   private fixedUpdate(): void {
@@ -44,7 +53,9 @@ export class GridRoom extends Room<{ state: GridRoomState }> {
       const player = this.state.players.get(sessionId);
       if (!player) continue;
 
-      const yaw = clamp(input.yaw, -Math.PI, Math.PI);
+      // Wrap yaw into [-π, π] instead of clamping — clamping diverged from the
+      // client's unbounded yaw past ±180° and caused reconcile rubber-banding.
+      const yaw = wrapAngle(input.yaw);
       const forwardX = Math.sin(yaw);
       const forwardZ = Math.cos(yaw);
       const rightX = Math.cos(yaw);
@@ -76,10 +87,24 @@ export class GridRoom extends Room<{ state: GridRoomState }> {
       player.qw = Math.cos(yaw / 2);
       player.pitch = clamp(input.pitch, -Math.PI / 2, Math.PI / 2);
       player.lastProcessedSeq = input.seq;
+
+      // Authoritative correction for the player's own prediction.
+      const client = this.clientsById.get(sessionId);
+      if (client) {
+        client.send('reconcile', {
+          seq: player.lastProcessedSeq,
+          state: { id: player.id, position: [player.x, player.y, player.z] },
+        });
+      }
     }
 
     this.pendingInputs.clear();
   }
+}
+
+function wrapAngle(value: number): number {
+  const twoPi = Math.PI * 2;
+  return value - twoPi * Math.floor((value + Math.PI) / twoPi);
 }
 
 function isValidInput(input: InputSnapshot): boolean {
