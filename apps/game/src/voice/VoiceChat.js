@@ -76,6 +76,14 @@ export default class VoiceChat {
         el.srcObject = stream;
     }
 
+    /** Tear down a single peer's call + audio element (called when a player leaves). */
+    dropPeer(peerId) {
+        if (!peerId) return;
+        const call = this._calls.get(peerId);
+        if (call) call.close();
+        this._cleanup(peerId);
+    }
+
     _cleanup(peerId) {
         const el = document.getElementById(`voice-${peerId}`);
         if (el) el.remove();

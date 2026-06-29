@@ -11,9 +11,9 @@
     "test": "tsc --noEmit --project tsconfig.json"
   },
   "dependencies": {
-    "@colyseus/core": "^0.17.44",
-    "@colyseus/schema": "^4.0.26",
-    "@colyseus/ws-transport": "^0.17.13",
+    "@colyseus/core": "^0.16.24",
+    "@colyseus/schema": "^3.0.76",
+    "@colyseus/ws-transport": "^0.16.5",
     "@thegridcn/shared": "workspace:*",
     "express": "^4.22.1"
   },

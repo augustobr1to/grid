@@ -18,8 +18,9 @@ export default class ColyseusClient {
         this._seq = 0;
         this._localId = null;
         this._joined = false;
+        this._initEmitted = false; // roomJoined fires once, on the first synced state
         this._known = new Set();
-        this._cbs = { roomJoined: [], worldSnapshot: [], playerJoined: [], playerLeft: [], reconcile: [] };
+        this._cbs = { roomJoined: [], worldSnapshot: [], playerJoined: [], playerLeft: [], reconcile: [], disconnect: [], error: [] };
         this._serverCbs = new Map(); // custom event name → [cb]
     }
 
@@ -38,16 +39,35 @@ export default class ColyseusClient {
                 this._nm.onMessage(event, (p) => cbs.forEach((cb) => cb(p)));
             }
 
-            // Authoritative state → synthetic snapshots + join/leave diffing.
-            this._nm.on('stateChanged', (state) => this._onState(state));
+            // Connection loss / transport errors → surface to the UI so a dropped
+            // socket no longer freezes the player silently.
+            this._nm.on('disconnected', (code) => { this._joined = false; this._emit('disconnect', code); });
+            this._nm.on('error', (err) => this._emit('error', err));
 
-            this._emit('roomJoined', { playerId: room.sessionId, peers: [] });
+            // Authoritative state → synthetic snapshots + join/leave diffing.
+            // roomJoined is emitted from the first state (below) once the
+            // server-authoritative seed and our own team are known.
+            this._nm.on('stateChanged', (state) => this._onState(state));
         } catch (err) {
             console.error('[ColyseusClient] join failed', err);
+            this._emit('error', err);
         }
     }
 
     _onState(state) {
+        // First synced state carries the authoritative map seed and our assigned
+        // team — emit roomJoined exactly once so the client can build the world.
+        if (!this._initEmitted) {
+            this._initEmitted = true;
+            const me = state.players.get(this._localId);
+            this._emit('roomJoined', {
+                playerId: this._localId,
+                seed: state.seed,
+                team: me ? me.team : null,
+                peers: [],
+            });
+        }
+
         const entities = [];
         const seen = new Set();
         state.players.forEach((p, id) => {
@@ -95,6 +115,8 @@ export default class ColyseusClient {
     onPlayerJoined(cb) { this._cbs.playerJoined.push(cb); }
     onPlayerLeft(cb) { this._cbs.playerLeft.push(cb); }
     onReconcile(cb) { this._cbs.reconcile.push(cb); }
+    onDisconnect(cb) { this._cbs.disconnect.push(cb); }
+    onError(cb) { this._cbs.error.push(cb); }
 
     onServer(event, cb) {
         if (!this._serverCbs.has(event)) this._serverCbs.set(event, []);

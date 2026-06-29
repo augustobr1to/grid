@@ -131,4 +131,22 @@ export default class Game {
     async loadAsset(path: string) {
         return this.assetStore.load(path);
     }
+
+    /**
+     * Tear down everything this Game owns: render loop + WebGL context, the active
+     * scene, all global input listeners, and cached assets. Without this every Game
+     * instance permanently leaks window/document listeners and a GL context. Safe to
+     * call more than once.
+     */
+    dispose(): void {
+        this.renderer.dispose();
+        if (this.scene) {
+            this.scene.unload();
+            this.scene = null;
+        }
+        this.inputManager.dispose();
+        this.assetStore.unloadAll();
+        void this.colyseusNetworkManager?.leave();
+        this._initialized = false;
+    }
 }

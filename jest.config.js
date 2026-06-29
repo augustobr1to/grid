@@ -25,7 +25,7 @@ const config = {
         }],
     },
     transformIgnorePatterns: [
-        'node_modules/(?!(three|@dimforge|three-mesh-bvh|howler|ecsy|ecsy-three)/)',
+        'node_modules/(?!(three|@dimforge|three-mesh-bvh)/)',
     ],
 };
 

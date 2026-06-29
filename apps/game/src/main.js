@@ -70,6 +70,7 @@ let hrMax = 0;
 let lastFiredAt = 0;
 let firePendingThisFrame = false;
 let qWasDown = false;
+let mWasDown = false;
 
 // Spawn shield
 let shielded = false;
@@ -77,6 +78,8 @@ let shieldEnd = 0;
 
 // Remote players (Map<string, THREE.Mesh>)
 const remotePlayers = new Map();
+// playerId → PeerJS id, so we can tear down a leaver's voice call/audio element.
+const remotePeerIds = new Map();
 // Shared remote-player GPU resources — one geometry + per-team materials reused
 // across all remote meshes (was one geometry + one material allocated per player).
 let _remoteGeo = null;
@@ -124,6 +127,13 @@ async function init() {
     // Show main menu
     MainMenu.init(onPlayClicked);
     setState('MAIN_MENU');
+
+    // Release mic + network on tab close so PeerJS peers and the room are torn down.
+    window.addEventListener('beforeunload', () => {
+        voiceChat?.dispose();
+        socketClient?.disconnect();
+        game.dispose();
+    });
 }
 
 function setState(state) {
@@ -131,68 +141,66 @@ function setState(state) {
     console.log(`[Grid War] State: ${state}`);
 }
 
-// ─── Play clicked → connect + load ──────────────────────────────────────────
+// ─── Play clicked → connect + join (world is built once the server replies) ──
 async function onPlayClicked(playerName, teamPref) {
     MainMenu.hide();
     setState('LOADING');
 
-    // Init networking
     socketClient = new ColyseusClient();
     snapshotBuffer = new SnapshotBuffer(100);
-
     localTeam = teamPref || 'blue';
 
-    // Connect and join
-    socketClient.connect();
-
+    // The world is built only after the server hands us the authoritative seed and
+    // our assigned team, so every client generates the identical city/collision map.
     socketClient.onRoomJoined((data) => {
         localPlayerId = data.playerId;
-        console.log(`[Grid War] Joined as ${localPlayerId}, team: ${localTeam}`);
+        if (data.team) localTeam = data.team;
+        console.log(`[Grid War] Joined as ${localPlayerId}, team: ${localTeam}, seed: ${data.seed}`);
+        buildWorld(data.seed).catch(console.error);
     });
 
-    // Generate city
-    const seed = Math.floor(Math.random() * 100000);
+    socketClient.onDisconnect(() => {
+        if (clientState !== 'POST_MATCH') showConnectionLost();
+    });
+    socketClient.onError((err) => {
+        console.error('[Grid War] network error', err);
+        if (clientState === 'LOADING') showConnectionLost();
+    });
+
+    // Register gameplay listeners up front; their handlers guard on IN_MATCH, so a
+    // snapshot arriving before the world is built is safely ignored.
+    setupNetworkListeners();
+
+    socketClient.connect();
+    socketClient.joinRoom(playerName, teamPref);
+}
+
+// ─── Build the match world from the server-authoritative seed ────────────────
+async function buildWorld(seed) {
     const generator = new CityGenerator(seed);
     cityData = generator.generate();
 
-    // Load scene
     await game.loadScene('grid_war');
-
-    // Add city to scene
     game.scene.threeJSScene.add(cityData.group);
 
-    // Build BVH on collision mesh
     collisionMesh = cityData.collisionMesh;
     collisionMesh.geometry.computeBoundsTree();
 
-    // Create capture point visuals
     capturePoints = cityData.capturePositions.map((pos, idx) => {
         const cp = new CapturePoint(pos, idx, pos.isBase, pos.team);
         game.scene.threeJSScene.add(cp.getGroup());
         return cp;
     });
 
-    // Spawn nodes
     spawnNodeRegistry = new SpawnNode(cityData.spawnNodes);
-
-    // Init tracer pool
     tracerPool = new BulletTracerPool(game.scene.threeJSScene);
-
-    // Init HUD
     HUD.init();
-
-    // Join room
-    socketClient.joinRoom(playerName, teamPref);
-
-    // Listen for server events
-    setupNetworkListeners();
 
     // Voice chat (best-effort P2P; never blocks the match if mic is denied)
     voiceChat = new VoiceChat();
     voiceChat.init((peerId) => socketClient.setVoicePeerId(peerId));
 
-    // Spawn player
-    // Set up the local player controller using the engine's KinematicCharacterController
+    // Local player controller (engine KinematicCharacterController)
     characterController = new KinematicCharacterController({
         inputManager: game.inputManager,
         camera: game.renderer.threeJSCamera,
@@ -205,7 +213,7 @@ async function onPlayClicked(playerName, teamPref) {
     characterController.setCollisionMesh(collisionMesh);
 
     const spawnPos = spawnNodeRegistry.getSpawnPosition(localTeam || 'blue');
-    // Create a Rapier kinematic body for the player (for triggers and server prediction)
+    // Kinematic Rapier body for triggers + server prediction
     const rbDesc = RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(spawnPos.x, spawnPos.y, spawnPos.z);
     const rb = game.scene.rapierWorld.createRigidBody(rbDesc);
     const colDesc = RAPIER.ColliderDesc.capsule(CAPSULE_HALF_HEIGHT, CAPSULE_RADIUS);
@@ -217,9 +225,28 @@ async function onPlayClicked(playerName, teamPref) {
     setState('IN_MATCH');
 }
 
+// ─── Connection-lost overlay (dropped socket no longer freezes silently) ─────
+function showConnectionLost() {
+    setState('DISCONNECTED');
+    let el = document.getElementById('connection-lost');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'connection-lost';
+        el.textContent = 'CONNECTION LOST — refresh to rejoin';
+        el.style.cssText =
+            'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;' +
+            'background:rgba(0,0,0,.85);color:#ff4444;font:700 28px monospace;z-index:9999';
+        document.body.appendChild(el);
+    }
+    el.style.display = 'flex';
+}
+
 // ─── Network listeners ──────────────────────────────────────────────────────
 function setupNetworkListeners() {
     socketClient.onWorldSnapshot((snap) => {
+        // World may not be built yet (snapshots can precede buildWorld) — ignore
+        // until we're actually in the match and the scene/controller exist.
+        if (clientState !== 'IN_MATCH') return;
         snapshotBuffer.push(snap);
 
         if (snap.entities) {
@@ -227,7 +254,10 @@ function setupNetworkListeners() {
             for (const entity of snap.entities) {
                 if (entity.id === localPlayerId) continue;
                 updateRemotePlayer(entity);
-                if (entity.peerId) peerIds.push(entity.peerId);
+                if (entity.peerId) {
+                    remotePeerIds.set(entity.id, entity.peerId);
+                    peerIds.push(entity.peerId);
+                }
             }
             if (voiceChat && peerIds.length) voiceChat.connectPeers(peerIds);
         }
@@ -244,17 +274,20 @@ function setupNetworkListeners() {
     });
 
     socketClient.onReconcile((payload) => {
-        const diff = Math.sqrt(
-            (payload.state.position[0] - characterController.position.x) ** 2 +
-            (payload.state.position[1] - characterController.position.y) ** 2 +
-            (payload.state.position[2] - characterController.position.z) ** 2
-        );
-        if (diff > 0.5 && characterController) {
-            characterController.position.set(...payload.state.position);
+        if (!characterController) return;
+        // Correct horizontal (X/Z) drift only. The server simulates Y on flat ground
+        // and has no terrain, so the local terrain-aware controller owns its own Y —
+        // reconciling it would yank the player down on every jump (rubber-banding).
+        const px = payload.state.position[0];
+        const pz = payload.state.position[2];
+        const dx = px - characterController.position.x;
+        const dz = pz - characterController.position.z;
+        if (dx * dx + dz * dz > 0.25) {
+            const py = characterController.position.y;
+            characterController.position.x = px;
+            characterController.position.z = pz;
             const rb = characterController['_rigidBody'];
-            if (rb) {
-                rb.setTranslation({ x: payload.state.position[0], y: payload.state.position[1], z: payload.state.position[2] }, true);
-            }
+            if (rb) rb.setTranslation({ x: px, y: py, z: pz }, true);
         }
     });
 
@@ -295,6 +328,9 @@ function setupNetworkListeners() {
     socketClient.onServer(Events.MATCH_END, (data) => {
         setState('POST_MATCH');
         showMatchEnd(data.winner);
+        // Match over — release the mic + all P2P voice connections.
+        voiceChat?.dispose();
+        voiceChat = null;
     });
 
     socketClient.onServer(Events.POINT_CAPTURED, (data) => {
@@ -345,6 +381,12 @@ function removeRemotePlayer(id) {
         // Geometry + materials are shared across all remotes — do NOT dispose here.
         remotePlayers.delete(id);
     }
+    // Tear down the leaver's voice call + <audio> element (PeerJS 'close' may never fire).
+    const peerId = remotePeerIds.get(id);
+    if (peerId) {
+        voiceChat?.dropPeer(peerId);
+        remotePeerIds.delete(id);
+    }
 }
 
 // ─── Game loop (called via Renderer.beforeRender) ────────────────────────────
@@ -384,10 +426,12 @@ function onBeforeRender({ deltaTimeInSec }) {
         tryResupply();
     }
 
-    // ─── Map overlay (M key) ───────────────────────────────────────────
-    if (game.inputManager.isKeyDown('m')) {
+    // ─── Map overlay (M key — edge-detected so it toggles once per press) ──
+    const mDown = game.inputManager.isKeyDown('m');
+    if (mDown && !mWasDown) {
         MapOverlay.toggle();
     }
+    mWasDown = mDown;
 
     // ─── Tab for scoreboard ────────────────────────────────────────────
     if (game.inputManager.isKeyDown('tab')) {

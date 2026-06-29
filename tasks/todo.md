@@ -1,29 +1,27 @@
-## ✅ Completed
+# Fix plan — council CRITICAL + HIGH (branch fix/council-critical-high)
 
-### High — correctness
-- [x] Implement `Scene.ts` — load GameObjects from SceneJSON, wire Rapier world
-- [x] Implement `GameObject.ts` — component attach/detach, transform sync
-- [x] Implement `InputManager.ts` — keyboard, mouse (pointer lock), gamepad
-- [x] Implement `NetworkManager.ts` — Socket.IO client wrapper
-- [x] Implement `Interpolator.ts` — snapshot interpolation for remote players
-- [x] Write unit tests for all of the above (target 70 % line coverage)
+## CRITICAL trio (multiplayer correctness)
+- [x] 1. Server-authoritative map seed: add `seed` to GridRoomState; server picks in onCreate; client builds city from server seed (restructure onPlayClicked → buildWorld after roomJoined).
+- [x] 2. Server vertical sim: track per-player vy, jump+gravity on flat floor (REST_Y=1.7, GRAVITY=20, JUMP=8) so remote players see jumps.
+- [x] 3. Reconcile XZ-only on client: preserve local Y → kills jump rubber-band.
 
-### High — editor
-- [x] Implement `Viewport` component (Three.js canvas + gizmos)
-- [x] Implement `SceneTree` component (drag-drop reorder)
-- [x] Implement `Inspector` component (property editor)
-- [x] Implement `Toolbar` component
-- [x] File System Access API save-to-disk in `handleSave`
+## HIGH
+- [x] 4. Engine `Game.dispose()` — renderer.dispose + scene.unload + inputManager.dispose + assetStore.unloadAll.
+- [x] 5. Voice/room teardown: beforeunload + POST_MATCH dispose; VoiceChat.dropPeer; call from removeRemotePlayer (track playerId→peerId).
+- [x] 6. m-key edge-detect (mWasDown).
+- [x] 7. Team `auto` resolved from server-confirmed own team (via roomJoined payload).
+- [x] 8. Reconnection signal: ColyseusClient surfaces disconnect/error to UI callbacks.
+- [x] 9. Colyseus client 0.16 → 0.17 (match server).
+- [x] 10. Prune dead deps ecsy/howler/events + jest/vite config refs.
+- [x] 11. Server hardening: finite-number check on input origin/direction; peerId charset/length validation.
 
-### Medium — DX
-- [x] `packages/engine` — add `vite-plugin-dts` for `.d.ts` bundling
-- [x] Add `CHANGELOG.md` and semantic versioning
+## Verify
+- [x] build all green (6 projects), tests 21/21, lint clean
+- [x] present diff for review (do NOT merge to main without OK)
 
-### Low — polish
-- [x] Add `husky` + `lint-staged` for pre-commit hooks
-- [x] Add `size-limit` to track bundle size regressions
-- [x] Toast notification system in editor (replace `alert()` in legacy JSX)
-
-## 🔲 Remaining
-
-No open tasks.
+## Deferred (large refactors, noted not done)
+- Engine `any`→ISceneHost/INetworkManager interfaces; re-enable no-explicit-any
+- game `.js`→`.ts` migration (13 files)
+- Full client input-replay reconciliation (InputQueue)
+- Colyseus room jest test harness
+- Dead UI systems (scoreboard wiring, capture visuals, audio, return-to-lobby, editor 3D viewport)

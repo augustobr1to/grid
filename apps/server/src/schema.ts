@@ -20,5 +20,7 @@ export class PlayerState extends Schema {
 export class GridRoomState extends Schema {
   @type('number') tick = 0;
   @type('number') serverTime = Date.now();
+  /** Authoritative city-generation seed — every client builds the same map from it. */
+  @type('number') seed = 0;
   @type({ map: PlayerState }) players = new MapSchema<PlayerState>();
 }

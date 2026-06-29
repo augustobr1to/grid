@@ -22,7 +22,6 @@ export default defineConfig({
         "@dimforge/rapier3d-compat",
         "@thegridcn/shared",
         "colyseus.js",
-        "howler",
         "three",
         "three-mesh-bvh",
       ],
