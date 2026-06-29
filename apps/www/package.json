@@ -17,13 +17,13 @@
     "clsx": "^2.1.1",
     "lucide-react": "^0.468.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1",
+    "react-dom": "^19.2.7",
     "tailwind-merge": "^2.6.0",
     "three": "^0.168.0"
   },
   "devDependencies": {
     "@types/react": "^18.3.28",
-    "@types/react-dom": "^18.3.7",
+    "@types/react-dom": "^19.2.3",
     "@types/three": "^0.168.0",
     "@vitejs/plugin-react": "^5.0.0",
     "autoprefixer": "^10.4.20",
