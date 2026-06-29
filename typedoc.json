@@ -1,0 +1,11 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": ["packages/engine/src/index.ts"],
+  "tsconfig": "packages/engine/tsconfig.json",
+  "out": "docs/api",
+  "name": "Grid Engine API",
+  "excludePrivate": true,
+  "excludeInternal": true,
+  "skipErrorChecking": true,
+  "githubPages": false
+}

@@ -13,6 +13,10 @@ const GRAVITY = 20;
 // PeerJS ids are uuid-ish: hex, dashes, and the occasional underscore. Reject
 // anything else so a client cannot force peers to dial an arbitrary string.
 const PEER_ID_RE = /^[a-zA-Z0-9_-]{1,64}$/;
+// Per-client input ceiling. The sim runs at 60 Hz and the client throttles sends to
+// ~30 Hz, so 120/sec is generous headroom while still capping a flooding client's
+// per-connection CPU cost (validation + dedupe) — basic message-flood DoS defense.
+const MAX_INPUTS_PER_SEC = 120;
 
 export class GridRoom extends Room<GridRoomState> {
   maxClients = MAX_PLAYERS;
@@ -20,6 +24,8 @@ export class GridRoom extends Room<GridRoomState> {
   private readonly clientsById = new Map<string, Client>();
   /** Per-player vertical velocity (server-internal; not part of synced schema). */
   private readonly verticalVel = new Map<string, number>();
+  /** Per-client input rate-limit window: sessionId → { count, windowStart }. */
+  private readonly inputBudget = new Map<string, { count: number; windowStart: number }>();
 
   onCreate(): void {
     const state = new GridRoomState();
@@ -28,6 +34,7 @@ export class GridRoom extends Room<GridRoomState> {
     this.setSimulationInterval(() => this.fixedUpdate(), FIXED_DT * 1000);
 
     this.onMessage('input', (client, input: InputSnapshot) => {
+      if (!this.allowInput(client.sessionId)) return;
       if (!isValidInput(input)) return;
       const player = this.state.players.get(client.sessionId);
       if (!player || input.seq <= player.lastProcessedSeq) return;
@@ -66,6 +73,20 @@ export class GridRoom extends Room<GridRoomState> {
     this.state.players.delete(client.sessionId);
     this.clientsById.delete(client.sessionId);
     this.verticalVel.delete(client.sessionId);
+    this.inputBudget.delete(client.sessionId);
+  }
+
+  /** Token-bucket rate limit: accept up to MAX_INPUTS_PER_SEC input msgs/client/sec. */
+  private allowInput(sessionId: string): boolean {
+    const now = Date.now();
+    let budget = this.inputBudget.get(sessionId);
+    if (!budget || now - budget.windowStart >= 1000) {
+      budget = { count: 0, windowStart: now };
+      this.inputBudget.set(sessionId, budget);
+    }
+    if (budget.count >= MAX_INPUTS_PER_SEC) return false;
+    budget.count += 1;
+    return true;
   }
 
   private fixedUpdate(): void {

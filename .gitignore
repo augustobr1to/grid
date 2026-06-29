@@ -1,5 +1,9 @@
 node_modules
 dist
+docs/api
+.env
+.env.*
+!.env.example
 .DS_Store
 *.local
 .nx

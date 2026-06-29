@@ -131,6 +131,23 @@ describe('GridRoom', () => {
     expect(room.state.players.get(client.sessionId)!.lastProcessedSeq).toBe(0);
   });
 
+  it('rate-limits a flood of inputs (does not process all of them)', async () => {
+    const client = await colyseus.sdk.joinOrCreate('grid_room', { name: 'A' });
+    await nextPatch(client);
+    const room = colyseus.getRoomById(client.roomId);
+
+    // Blast far more than the per-second budget in a tight loop; the limiter must
+    // drop the overflow, so the last accepted seq stays well below what we sent.
+    for (let seq = 1; seq <= 400; seq++) {
+      client.send('input', input({ seq, forward: true }));
+    }
+    await sleep(300);
+
+    const processed = room.state.players.get(client.sessionId)!.lastProcessedSeq;
+    expect(processed).toBeGreaterThan(0);
+    expect(processed).toBeLessThanOrEqual(120);
+  });
+
   it('brokers a valid peerId but rejects a malformed one', async () => {
     const client = await colyseus.sdk.joinOrCreate('grid_room', { name: 'A' });
     await nextPatch(client);

@@ -33,7 +33,9 @@ export default class EventEmitter {
     emit(event: string, ...args: unknown[]): void {
         const listeners = this._listeners.get(event);
         if (listeners) {
-            for (const listener of listeners) {
+            // Iterate a snapshot: a listener may add/remove listeners (or fire `once`,
+            // which removes itself) during dispatch without corrupting this emit.
+            for (const listener of [...listeners]) {
                 listener(...args);
             }
         }

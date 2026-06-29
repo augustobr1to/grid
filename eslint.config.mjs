@@ -10,6 +10,7 @@ export default [
       '**/.nx/**',
       '**/.yarn/**',
       '**/.remember/**',
+      'docs/api/**',
       'tests/__mocks__/**',
     ],
   },
