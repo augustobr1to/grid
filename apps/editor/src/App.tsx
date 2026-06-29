@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useCallback } from 'react';
+import { useRef, useEffect, useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import type { RootState, AppDispatch } from './store';
 import {
@@ -113,7 +113,7 @@ export default function App() {
                         </div>
                         {(sceneJSON.gameObjects || []).map((go: any, i: number) => (
                             <TreeNode
-                                key={go.name || `go-${i}`}
+                                key={go.id ?? `go-${i}`}
                                 gameObject={go}
                                 index={i}
                                 selectedId={selectedId}
@@ -168,7 +168,7 @@ function TreeNode({ gameObject, index, selectedId, depth, onSelect }: {
     depth: number;
     onSelect: (id: string) => void;
 }) {
-    const id = gameObject.name || `go-${index}`;
+    const id = gameObject.id ?? `go-${index}`;
     return (
         <>
             <div
@@ -185,7 +185,7 @@ function TreeNode({ gameObject, index, selectedId, depth, onSelect }: {
             </div>
             {(gameObject.children || []).map((child: any, i: number) => (
                 <TreeNode
-                    key={child.name || `child-${i}`}
+                    key={child.id ?? `child-${i}`}
                     gameObject={child}
                     index={i}
                     selectedId={selectedId}
@@ -198,7 +198,7 @@ function TreeNode({ gameObject, index, selectedId, depth, onSelect }: {
 }
 
 // ─── InspectorPanel ──────────────────────────────────────────────────────────
-function InspectorPanel({ sceneJSON, selectedId, onUpdate: _onUpdate }: {
+function InspectorPanel({ sceneJSON, selectedId, onUpdate }: {
     sceneJSON: any;
     selectedId: string;
     onUpdate: (json: any) => void;
@@ -206,11 +206,26 @@ function InspectorPanel({ sceneJSON, selectedId, onUpdate: _onUpdate }: {
     const go = findGameObject(sceneJSON.gameObjects || [], selectedId);
     if (!go) return <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Not found</div>;
 
+    const setPath = (obj: any, path: string[], value: any): any => {
+        const [head, ...rest] = path;
+        if (rest.length === 0) return { ...obj, [head]: value };
+        return { ...obj, [head]: setPath(obj[head] ?? {}, rest, value) };
+    };
+    const handleChange = (path: string[], value: any) => {
+        const updateIn = (objects: any[]): any[] =>
+            objects.map(o => {
+                if (o.id === selectedId) return setPath(o, path, value);
+                if (o.children) return { ...o, children: updateIn(o.children) };
+                return o;
+            });
+        onUpdate({ ...sceneJSON, gameObjects: updateIn(sceneJSON.gameObjects || []) });
+    };
+
     return (
         <div>
             <div className="inspector-field">
                 <label>Name</label>
-                <input type="text" defaultValue={go.name || ''} />
+                <input type="text" defaultValue={go.name || ''} onChange={e => handleChange(['name'], e.target.value)} />
             </div>
             <div className="inspector-field">
                 <label>Type</label>
@@ -219,23 +234,23 @@ function InspectorPanel({ sceneJSON, selectedId, onUpdate: _onUpdate }: {
 
             <h3 style={{ marginTop: '16px' }}>Position</h3>
             <div className="inspector-field">
-                <label>X</label><input type="number" step="0.1" defaultValue={go.position?.x ?? 0} />
-                <label>Y</label><input type="number" step="0.1" defaultValue={go.position?.y ?? 0} />
-                <label>Z</label><input type="number" step="0.1" defaultValue={go.position?.z ?? 0} />
+                <label>X</label><input type="number" step="0.1" defaultValue={go.position?.x ?? 0} onChange={e => handleChange(['position', 'x'], parseFloat(e.target.value) || 0)} />
+                <label>Y</label><input type="number" step="0.1" defaultValue={go.position?.y ?? 0} onChange={e => handleChange(['position', 'y'], parseFloat(e.target.value) || 0)} />
+                <label>Z</label><input type="number" step="0.1" defaultValue={go.position?.z ?? 0} onChange={e => handleChange(['position', 'z'], parseFloat(e.target.value) || 0)} />
             </div>
 
             <h3 style={{ marginTop: '16px' }}>Rotation</h3>
             <div className="inspector-field">
-                <label>X</label><input type="number" step="0.01" defaultValue={go.rotation?.x ?? 0} />
-                <label>Y</label><input type="number" step="0.01" defaultValue={go.rotation?.y ?? 0} />
-                <label>Z</label><input type="number" step="0.01" defaultValue={go.rotation?.z ?? 0} />
+                <label>X</label><input type="number" step="0.01" defaultValue={go.rotation?.x ?? 0} onChange={e => handleChange(['rotation', 'x'], parseFloat(e.target.value) || 0)} />
+                <label>Y</label><input type="number" step="0.01" defaultValue={go.rotation?.y ?? 0} onChange={e => handleChange(['rotation', 'y'], parseFloat(e.target.value) || 0)} />
+                <label>Z</label><input type="number" step="0.01" defaultValue={go.rotation?.z ?? 0} onChange={e => handleChange(['rotation', 'z'], parseFloat(e.target.value) || 0)} />
             </div>
 
             <h3 style={{ marginTop: '16px' }}>Scale</h3>
             <div className="inspector-field">
-                <label>X</label><input type="number" step="0.1" defaultValue={go.scale?.x ?? 1} />
-                <label>Y</label><input type="number" step="0.1" defaultValue={go.scale?.y ?? 1} />
-                <label>Z</label><input type="number" step="0.1" defaultValue={go.scale?.z ?? 1} />
+                <label>X</label><input type="number" step="0.1" defaultValue={go.scale?.x ?? 1} onChange={e => handleChange(['scale', 'x'], parseFloat(e.target.value) || 0)} />
+                <label>Y</label><input type="number" step="0.1" defaultValue={go.scale?.y ?? 1} onChange={e => handleChange(['scale', 'y'], parseFloat(e.target.value) || 0)} />
+                <label>Z</label><input type="number" step="0.1" defaultValue={go.scale?.z ?? 1} onChange={e => handleChange(['scale', 'z'], parseFloat(e.target.value) || 0)} />
             </div>
 
             {go.components && go.components.length > 0 && (
@@ -274,7 +289,7 @@ function InspectorPanel({ sceneJSON, selectedId, onUpdate: _onUpdate }: {
 
 function findGameObject(objects: any[], id: string): any {
     for (const go of objects) {
-        if (go.name === id) return go;
+        if (go.id === id) return go;
         if (go.children) {
             const found = findGameObject(go.children, id);
             if (found) return found;

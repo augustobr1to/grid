@@ -14,6 +14,7 @@ export default class DynamicCharacterController extends CharacterController {
     private _rigidBody: RAPIER.RigidBody | null = null;
     private _yaw = 0;
     private _pitch = 0;
+    private _groundCheckDist = 0.1;
 
     constructor(options: {
         inputManager: InputManager;
@@ -57,6 +58,11 @@ export default class DynamicCharacterController extends CharacterController {
         const force = { x: _moveDir.x * this._speed * 10, y: 0, z: _moveDir.z * this._speed * 10 };
         this._rigidBody.addForce(force, true);
 
+        // Ground check (velocity heuristic for dynamic rest)
+        const t = this._rigidBody.translation();
+        const v = this._rigidBody.linvel();
+        this._grounded = Math.abs(v.y) < 0.01 && t.y <= 1.7 + this._groundCheckDist;
+
         // Jump
         if (this._inputManager.isKeyDown(' ') && this._grounded) {
             this._rigidBody.applyImpulse({ x: 0, y: this._jumpForce, z: 0 }, true);
@@ -64,8 +70,8 @@ export default class DynamicCharacterController extends CharacterController {
         }
 
         // Update camera from body position
-        const t = this._rigidBody.translation();
-        this._camera.position.set(t.x, t.y + 0.85, t.z);
+        const tt = this._rigidBody.translation();
+        this._camera.position.set(tt.x, tt.y + 0.85, tt.z);
         this._camera.rotation.order = 'YXZ';
         this._camera.rotation.y = this._yaw;
         this._camera.rotation.x = this._pitch;

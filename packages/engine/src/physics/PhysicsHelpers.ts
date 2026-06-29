@@ -32,12 +32,15 @@ export function createColliderDesc(data: ColliderData): RAPIER.ColliderDesc {
             }
             desc = RAPIER.ColliderDesc.trimesh(data.vertices, data.indices);
             break;
-        case 'convexHull':
+        case 'convexHull': {
             if (!data.vertices) {
                 throw new Error('[PhysicsHelpers] convexHull collider requires vertices');
             }
-            desc = RAPIER.ColliderDesc.convexHull(data.vertices)!;
+            const hullDesc = RAPIER.ColliderDesc.convexHull(data.vertices);
+            if (!hullDesc) throw new Error('[PhysicsHelpers] convexHull produced null — degenerate vertices');
+            desc = hullDesc;
             break;
+        }
         case 'roundCuboid':
             desc = RAPIER.ColliderDesc.roundCuboid(
                 data.hx ?? 0.5, data.hy ?? 0.5, data.hz ?? 0.5, data.borderRadius ?? 0.05
@@ -53,12 +56,15 @@ export function createColliderDesc(data: ColliderData): RAPIER.ColliderDesc {
                 data.halfHeight ?? 0.5, data.radius ?? 0.5, data.borderRadius ?? 0.05
             );
             break;
-        case 'roundConvexHull':
+        case 'roundConvexHull': {
             if (!data.vertices) {
                 throw new Error('[PhysicsHelpers] roundConvexHull collider requires vertices');
             }
-            desc = RAPIER.ColliderDesc.roundConvexHull(data.vertices, data.borderRadius ?? 0.05)!;
+            const roundHullDesc = RAPIER.ColliderDesc.roundConvexHull(data.vertices, data.borderRadius ?? 0.05);
+            if (!roundHullDesc) throw new Error('[PhysicsHelpers] roundConvexHull produced null — degenerate vertices');
+            desc = roundHullDesc;
             break;
+        }
         default:
             throw new Error(`[PhysicsHelpers] Unknown collider type: ${data.type}`);
     }

@@ -39,7 +39,7 @@ export default class GameRoom {
 
     async init(): Promise<void> {
         await RAPIER.init();
-        this._world = new RAPIER.World(new RAPIER.Vector3(0, -9.8, 0));
+        this._world = new RAPIER.World(new RAPIER.Vector3(0, -9.81, 0));
 
         // Start tick loops
         this._physicsInterval = setInterval(() => this.physicsTick(), 1000 / PHYSICS_HZ);
@@ -118,11 +118,9 @@ export default class GameRoom {
         // Validate seq is monotonically increasing
         if (input.seq <= entity.lastProcessedSeq) return;
 
-        // Clamp yaw and pitch
-        input.yaw = Math.max(-Math.PI, Math.min(Math.PI, input.yaw));
-        input.pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, input.pitch));
-
-        entity.lastInput = input;
+        const yaw = Math.max(-Math.PI, Math.min(Math.PI, input.yaw));
+        const pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, input.pitch));
+        entity.lastInput = { ...input, yaw, pitch };
     }
 
     physicsTick(): void {
@@ -163,7 +161,7 @@ export default class GameRoom {
     }
 
     snapshotTick(): void {
-        const snapshot = buildWorldSnapshot(this._entities);
+        const snapshot = buildWorldSnapshot(this._entities, this._tick);
 
         // Broadcast to all in room
         this._io.to(this.roomId).emit('WORLD_SNAPSHOT', snapshot);

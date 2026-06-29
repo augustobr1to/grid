@@ -4,6 +4,10 @@
  * No VR/WebXR path exists.
  */
 import * as THREE from 'three';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import type { RendererOptions, CameraOptions } from './types';
 import Logger from './Logger';
 
@@ -18,6 +22,13 @@ export default class Renderer {
     private _resizeHandler?: () => void;
     private _fixedTimeStep: number;
     private _maxSubSteps: number;
+    private _accumulator = 0;
+    // Tron postprocessing pipeline (lazy: composer is bound to the active scene)
+    private _postEnabled: boolean;
+    private _bloomOptions: { strength: number; radius: number; threshold: number };
+    private _composer?: EffectComposer;
+    private _bloomPass?: UnrealBloomPass;
+    private _composerScene?: THREE.Scene;
 
     constructor(game: any, options?: RendererOptions) {
         this._game = game;
@@ -25,6 +36,12 @@ export default class Renderer {
         this._clock = new THREE.Clock();
         this._fixedTimeStep = options?.fixedTimeStep ?? 1 / 60;
         this._maxSubSteps = options?.maxSubSteps ?? 5;
+        this._postEnabled = options?.tron ?? true;
+        this._bloomOptions = {
+            strength: options?.bloom?.strength ?? 0.9,
+            radius: options?.bloom?.radius ?? 0.5,
+            threshold: options?.bloom?.threshold ?? 0.85,
+        };
 
         // Camera
         const camOpts: CameraOptions = options?.cameraOptions ?? {};
@@ -57,8 +74,17 @@ export default class Renderer {
         this.threeJSRenderer.outputColorSpace = THREE.SRGBColorSpace;
         this.threeJSRenderer.shadowMap.enabled = options?.shadows ?? false;
         this.threeJSRenderer.shadowMap.type = THREE.PCFSoftShadowMap;
-        if (options?.clearColor !== undefined) {
-            this.threeJSRenderer.setClearColor(options.clearColor);
+
+        // Default Tron look: filmic tone mapping for neon glow + dark backdrop.
+        if (this._postEnabled) {
+            this.threeJSRenderer.toneMapping = THREE.ACESFilmicToneMapping;
+            this.threeJSRenderer.toneMappingExposure = options?.toneMappingExposure ?? 1.0;
+        }
+
+        const defaultClearColor = this._postEnabled ? 0x05060a : undefined;
+        const clearColor = options?.clearColor ?? defaultClearColor;
+        if (clearColor !== undefined) {
+            this.threeJSRenderer.setClearColor(clearColor);
         }
 
         // Full-screen canvas
@@ -73,6 +99,8 @@ export default class Renderer {
                 this.threeJSCamera.aspect = w / h;
                 this.threeJSCamera.updateProjectionMatrix();
                 this.threeJSRenderer.setSize(w, h);
+                this._composer?.setSize(w, h);
+                this._bloomPass?.resolution.set(w, h);
             };
             window.addEventListener('resize', this._resizeHandler);
         }
@@ -119,8 +147,15 @@ export default class Renderer {
                 // Sync physics → rendering
                 scene.syncPhysics();
 
-                // Render
-                this.threeJSRenderer.render(scene.threeJSScene, this.threeJSCamera);
+                // Render — through the Tron bloom composer when enabled
+                if (this._postEnabled) {
+                    if (this._composerScene !== scene.threeJSScene) {
+                        this._buildComposer(scene.threeJSScene);
+                    }
+                    this._composer!.render(deltaTimeInSec);
+                } else {
+                    this.threeJSRenderer.render(scene.threeJSScene, this.threeJSCamera);
+                }
             }
 
             // 4. Reset mouse deltas
@@ -141,10 +176,33 @@ export default class Renderer {
             window.removeEventListener('resize', this._resizeHandler);
             this._resizeHandler = undefined;
         }
+        this._composer?.dispose();
         this.threeJSRenderer.dispose();
     }
 
-    private _accumulator = 0;
+    /** (Re)build the bloom composer bound to the given scene. */
+    private _buildComposer(scene: THREE.Scene): void {
+        this._composer?.dispose();
+
+        const size = new THREE.Vector2();
+        this.threeJSRenderer.getSize(size);
+
+        const composer = new EffectComposer(this.threeJSRenderer);
+        composer.addPass(new RenderPass(scene, this.threeJSCamera));
+
+        const bloomPass = new UnrealBloomPass(
+            size,
+            this._bloomOptions.strength,
+            this._bloomOptions.radius,
+            this._bloomOptions.threshold
+        );
+        composer.addPass(bloomPass);
+        composer.addPass(new OutputPass());
+
+        this._composer = composer;
+        this._bloomPass = bloomPass;
+        this._composerScene = scene;
+    }
 
     private _stepPhysics(scene: any, deltaTimeInSec: number): void {
         this._accumulator += Math.min(deltaTimeInSec, 0.25);

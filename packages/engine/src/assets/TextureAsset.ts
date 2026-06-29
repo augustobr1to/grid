@@ -3,6 +3,7 @@
  */
 import * as THREE from 'three';
 import Asset from './Asset';
+import { resolveAssetURL, loadViaThreeLoader } from './assetURL';
 
 export default class TextureAsset extends Asset {
     private _texture: THREE.Texture | null = null;
@@ -12,34 +13,15 @@ export default class TextureAsset extends Asset {
     }
 
     async load(baseURLorHandle: string | FileSystemDirectoryHandle): Promise<void> {
-        let url: string;
-        if (typeof baseURLorHandle === 'string') {
-            url = `${baseURLorHandle}/${this.path}`;
-        } else {
-            const parts = this.path.split('/');
-            let handle: FileSystemDirectoryHandle | FileSystemFileHandle = baseURLorHandle;
-            for (let i = 0; i < parts.length - 1; i++) {
-                handle = await (handle as FileSystemDirectoryHandle).getDirectoryHandle(parts[i]);
-            }
-            const fileHandle = await (handle as FileSystemDirectoryHandle).getFileHandle(parts[parts.length - 1]);
-            const file = await fileHandle.getFile();
-            url = URL.createObjectURL(file);
+        const { url, objUrl } = await resolveAssetURL(baseURLorHandle, this.path);
+        try {
+            const texture = await loadViaThreeLoader(new THREE.TextureLoader(), url);
+            this._texture = texture;
+            this._data = texture;
+            this._loaded = true;
+        } finally {
+            if (objUrl) URL.revokeObjectURL(objUrl);
         }
-
-        return new Promise((resolve, reject) => {
-            const loader = new THREE.TextureLoader();
-            loader.load(
-                url,
-                (texture) => {
-                    this._texture = texture;
-                    this._data = texture;
-                    this._loaded = true;
-                    resolve();
-                },
-                undefined,
-                (err) => reject(err)
-            );
-        });
     }
 
     dispose(): void {

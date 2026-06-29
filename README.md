@@ -58,9 +58,8 @@ Workspace highlights:
 | [Three.js](https://threejs.org) | WebGL rendering — scene graph, lights, models, animations |
 | [Rapier](https://rapier.rs) | WASM physics — rigid bodies, character controller, colliders |
 | [three-mesh-bvh](https://github.com/gkjohnson/three-mesh-bvh) | BVH-accelerated raycasting — sub-ms FPS collision on complex geometry |
-| [ECSY](https://ecsy.io) + [ecsy-three](https://github.com/ecsyjs/ecsy-three) | Entity-Component-System architecture |
-| [Howler.js](https://howlerjs.com) | Music, UI audio, audio sprites |
-| [Socket.IO](https://socket.io) | Authoritative multiplayer server + client sync |
+| [Colyseus](https://colyseus.io) | Authoritative multiplayer server + client state sync |
+| [PeerJS](https://peerjs.com) | _(planned)_ P2P WebRTC voice chat between players |
 
 > **No VR. No mobile. No magic.**
 > Grid targets desktop browsers and first-person gameplay only. All WebXR / VR code paths are intentionally omitted.
@@ -87,13 +86,14 @@ Workspace highlights:
 - 🎮 **First-Person focused** — built-in capsule character controller, pointer-lock mouse look, WASD + gamepad input
 - 🏗️ **Data-driven scenes** — scenes and game-object types are plain JSON; no scene logic belongs only in code
 - ⚡ **BVH collision** — `three-mesh-bvh` capsule sweeps give sub-millisecond player vs. world collision on high-poly levels
-- 🧱 **ECS architecture** — `ECSY` separates data (Components) from logic (Systems); no deep inheritance hierarchies
-- 🔊 **Dual audio system** — `Howler.js` for music/SFX sprites + Three.js `PositionalAudio` for in-world spatial sound
-- 🌐 **Multiplayer ready** — Colyseus authoritative server plus legacy Socket.IO compatibility path
+- 🧩 **Scene → GameObject → Component model** — composition over inheritance; components own data and behaviour
+- 🔊 **Spatial audio** — `SoundComponent` uses Three.js `AudioLoader` + `PositionalAudio` for in-world 3D sound
+- 🌐 **Authoritative multiplayer** — Colyseus server owns the simulation; client `ColyseusNetworkManager` + `Interpolator` sync remote entities
+- 🌌 **Default Tron look** — engine renderer ships ACES filmic tone mapping + `UnrealBloom` post-processing with a dark/neon default palette (opt-out via renderer options)
 - 🖊️ **Visual editor** — React + Vite scene editor with live hot-reload viewport, inspector, and transform gizmo
 - 📦 **pnpm + Nx monorepo** — deployables in `apps/*`, reusable libraries in `packages/*`
 - 🦺 **TypeScript first** — strict types throughout; engine ships `.d.ts` declaration files
-- ✅ **Tested** — Jest (engine), Vitest (editor/game), with Three.js and Rapier mocked for Node.js
+- ✅ **Engine tests** — Jest covers `packages/engine` (Scene, GameObject, InputManager, Interpolator) with Three.js and Rapier mocked for Node.js. No editor/game test suites yet — _TODO_.
 
 ---
 
@@ -241,20 +241,51 @@ await game.loadScene('level1');
 
 ```typescript
 // Core
-export { Game, Scene, GameObject, Component }
+export { Game, Scene, GameObject, Component, Renderer, Settings, Logger }
 
 // Controllers
 export { CharacterController, KinematicCharacterController, DynamicCharacterController }
+export { EventEmitter }
+export { generateId, deepMerge, clamp }
 
 // Multiplayer
-export { NetworkManager }
+export { ColyseusNetworkManager, Interpolator }
+export { NetworkManager }            // legacy Socket.IO client (deprecated)
 
-// Re-exported underlying libraries
-export { THREE, RAPIER }
+// Input
+export { InputManager }
+
+// Assets
+export { AssetStore, Asset, GLTFAsset, JSONAsset, TextureAsset, SoundAsset }
+
+// Components
+export { ModelComponent, RigidBodyComponent, LightComponent, SoundComponent }
+
+// Physics / UI helpers
+export { createColliderDesc, createRigidBodyDesc }
+export { createCrosshair, anchorHUD }
+
+// Shaders (Tron-style materials)
+export {
+  ShaderLibrary, shaderLibrary,
+  createHologramMaterial, createGridPulseMaterial, advanceShaderTime,
+}
+
+// Re-exported underlying library
+export * as THREE from 'three'
 
 // Types
-export type { GameOptions, SceneJSON, GameObjectJSON, ComponentJSON }
+export type {
+  GameOptions, RendererOptions, CameraOptions, InputOptions,
+  SceneJSON, GameObjectJSON, ComponentJSON,
+  ColyseusNetworkOptions, NetworkOptions, PlayerSnapshot, GameSnapshot,
+  Vec3, Quat, Transform,
+}
 ```
+
+> The default `ColyseusNetworkManager` is the authoritative transport. The
+> Socket.IO–based `NetworkManager` is retained only as a legacy/compatibility
+> client and is deprecated.
 
 See [`docs/03-engine-api.md`](docs/03-engine-api.md) for the full TypeScript API surface.
 
@@ -405,7 +436,7 @@ Browser
 │   ├── Renderer          (THREE.WebGLRenderer)       │
 │   ├── AssetStore        (GLTF, JSON, Audio, Tex)    │
 │   ├── InputManager      (KB + Mouse + Gamepad)      │
-│   └── NetworkManager    (Socket.IO client)          │
+│   └── ColyseusNetworkManager (Colyseus client)      │
 │                                                     │
 │  Scene ───────────────── contains ───────────────  │
 │   ├── THREE.Scene                                   │
@@ -422,13 +453,9 @@ Browser
 │  BVH Layer ──────────── accelerates ─────────────  │
 │   └── three-mesh-bvh   (capsule sweep, raycasts)    │
 │                                                     │
-│  ECSY World — MANDATED for v1.0.0 ────────────────  │
-│   └── Games MUST use ECSY for ECS system structure   │
-│       (MovementSystem, CaptureSystem, etc.)           │
-│                                                     │
 └─────────────────────────────────────────────────────┘
           ▲                          ▲
-          │ Socket.IO                │ File System
+          │ Colyseus (ws)            │ File System
           ▼                          ▼ Access API
    Multiplayer Server          Scene Editor (React)
    (Colyseus/Rapier)          (apps/editor)
@@ -477,24 +504,6 @@ levelMesh.geometry.computeBoundsTree();
 // Sub-millisecond capsule sweep every frame
 const result = levelMesh.geometry.boundsTree.capsuleIntersects(levelMesh, playerCapsule);
 if (result) playerCapsule.translate(result.normal.multiplyScalar(result.depth));
-```
-
-### ECS Systems
-
-```typescript
-class PhysicsSystem extends System {
-  execute(delta: number) {
-    this.queries.bodies.results.forEach(entity => {
-      const ref = entity.getComponent(RigidBodyRef)!;
-      const pos = entity.getMutableComponent(Transform)!;
-      const t   = ref.body.translation();
-      pos.position.set(t.x, t.y, t.z);
-    });
-  }
-}
-PhysicsSystem.queries = {
-  bodies: { components: [RigidBodyRef, Transform] }
-};
 ```
 
 ### Multiplayer Snapshot Loop
@@ -546,9 +555,9 @@ chore:    build, tooling, deps
 Grid Engine is released under the **MIT License** — free to use in personal,
 commercial, and open-source projects.
 
-All runtime dependencies (Three.js, Rapier, three-mesh-bvh, ECSY, Howler.js,
-Socket.IO, React, Redux, Vite) are also MIT licensed. TypeScript is used only
-as a build-time tool and is never bundled into engine output.
+All runtime dependencies (Three.js, Rapier, three-mesh-bvh, Colyseus, React,
+Redux, Vite) are also MIT licensed. TypeScript is used only as a build-time
+tool and is never bundled into engine output.
 
 Full third-party license texts are reproduced in [`LICENSE`](LICENSE).
 
@@ -556,6 +565,6 @@ Full third-party license texts are reproduced in [`LICENSE`](LICENSE).
 
 
 
-**Built with Three.js · Rapier · three-mesh-bvh · ECSY · Howler.js · Socket.IO**
+**Built with Three.js · Rapier · three-mesh-bvh · Colyseus**
 
 [Read the Docs](docs/00-overview.md) · [Engine API](docs/03-engine-api.md) · [Multiplayer](docs/04-multiplayer-socketio.md) · [Editor](docs/05-editor-react-vite.md) · [Example Game](docs/09-example-game.md) · [References](docs/08-references-and-resources.md)

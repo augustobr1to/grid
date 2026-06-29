@@ -67,6 +67,8 @@ let hrAmmo = 0;
 let srMax = 0;
 let hrMax = 0;
 let lastFiredAt = 0;
+let firePendingThisFrame = false;
+let qWasDown = false;
 
 // Spawn shield
 let shielded = false;
@@ -112,12 +114,13 @@ async function onPlayClicked(playerName, teamPref) {
     socketClient = new SocketClient(game.networkManager);
     snapshotBuffer = new SnapshotBuffer(100);
 
+    localTeam = teamPref || 'blue';
+
     // Connect and join
     socketClient.connect();
 
     socketClient.onRoomJoined((data) => {
         localPlayerId = data.playerId;
-        localTeam = data.team || 'blue';
         console.log(`[Grid War] Joined as ${localPlayerId}, team: ${localTeam}`);
     });
 
@@ -189,19 +192,10 @@ function setupNetworkListeners() {
     socketClient.onWorldSnapshot((snap) => {
         snapshotBuffer.push(snap);
 
-        // Update remote players
-        if (snap.players) {
-            for (const p of snap.players) {
-                if (p.id === localPlayerId) continue;
-                updateRemotePlayer(p);
-            }
-        }
-
-        // Update capture points
-        if (snap.points) {
-            for (const ps of snap.points) {
-                const cp = capturePoints[ps.pointId];
-                if (cp) cp.updateVisual(ps);
+        if (snap.entities) {
+            for (const entity of snap.entities) {
+                if (entity.id === localPlayerId) continue;
+                updateRemotePlayer(entity);
             }
         }
     });
@@ -332,12 +326,14 @@ function onBeforeRender({ deltaTimeInSec }) {
     }
 
     // ─── Weapon switching (Q key or mouse wheel) ────────────────────────
-    if (game.inputManager.isKeyDown('q')) {
+    const qDown = game.inputManager.isKeyDown('q');
+    if (qDown && !qWasDown) {
         activeSlot = activeSlot === 'sr' ? 'hr' : 'sr';
     }
+    qWasDown = qDown;
 
     // ─── Fire ───────────────────────────────────────────────────────────
-    if (game.inputManager.isKeyDown('mouse0') || (typeof MouseEvent !== 'undefined' && document.pointerLockElement)) {
+    if (game.inputManager.isKeyDown('mouse0')) {
         tryFire();
     }
 
@@ -378,12 +374,13 @@ function onBeforeRender({ deltaTimeInSec }) {
             jump: game.inputManager.isKeyDown(' '),
             yaw: characterController ? characterController.yaw : 0,
             pitch: characterController ? characterController.pitch : 0,
-            fire: false, // set by tryFire
+            fire: firePendingThisFrame,
             weaponId: currentWeaponId,
             slot: activeSlot,
             origin: [camera.position.x, camera.position.y, camera.position.z],
             direction: [_rayDir.x, _rayDir.y, _rayDir.z],
         });
+        firePendingThisFrame = false;
     }
 
     // ─── HUD update ────────────────────────────────────────────────────
@@ -413,6 +410,7 @@ function tryFire() {
     if (now - lastFiredAt < 1000 / weapon.fireRateHz) return;
 
     lastFiredAt = now;
+    firePendingThisFrame = true;
 
     // Decrement ammo optimistically
     if (activeSlot === 'sr') srAmmo--;

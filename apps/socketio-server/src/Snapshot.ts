@@ -3,10 +3,7 @@
  */
 import type { WorldSnapshot, EntityState } from '@thegridcn/shared';
 
-let _tick = 0;
-
-export function buildWorldSnapshot(entities: Map<string, any>): WorldSnapshot {
-    _tick++;
+export function buildWorldSnapshot(entities: Map<string, any>, tick: number): WorldSnapshot {
     const entityStates: EntityState[] = [];
 
     for (const [id, entity] of entities) {
@@ -24,7 +21,7 @@ export function buildWorldSnapshot(entities: Map<string, any>): WorldSnapshot {
     }
 
     return {
-        tick: _tick,
+        tick,
         timestamp: Date.now(),
         entities: entityStates,
     };

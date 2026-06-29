@@ -8,7 +8,7 @@
         "declaration": false,
         "declarationMap": false,
         "paths": {
-            "@thegridcn/shared": ["../../packages/shared/dist/index.d.ts"]
+            "@thegridcn/shared": ["../../packages/shared/src/index.ts"]
         }
     },
     "include": [

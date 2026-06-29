@@ -184,21 +184,21 @@ export default class Scene {
   }
 
   private applyEnvironment(background?: string | number, fog?: FogJSON): void {
-    if (background !== undefined) {
-      this.threeJSScene.background = new THREE.Color(background);
-    }
-
-    if (fog) {
-      this.threeJSScene.fog = new THREE.Fog(fog.color, fog.near, fog.far);
-    }
+    // Default Tron backdrop: near-black with matching fog. JSON values still win.
+    this.threeJSScene.background = new THREE.Color(background ?? 0x05060a);
+    this.threeJSScene.fog = fog
+      ? new THREE.Fog(fog.color, fog.near, fog.far)
+      : new THREE.Fog(0x05060a, 12, 80);
   }
 
   private applyLights(lights: SceneLightJSON[]): void {
+    // Default Tron lighting: cool ambient + cyan key/hemisphere. JSON overrides entirely.
     const configs = lights.length > 0
       ? lights
       : [
-          { type: 'AmbientLight', color: 0xffffff, intensity: 0.45 },
-          { type: 'DirectionalLight', color: 0xffffff, intensity: 1.2, position: { x: 4, y: 8, z: 4 } },
+          { type: 'AmbientLight', color: 0x12203a, intensity: 0.6 },
+          { type: 'HemisphereLight', color: 0x45f3ff, intensity: 0.5 },
+          { type: 'DirectionalLight', color: 0x6be7ff, intensity: 0.9, position: { x: 4, y: 8, z: 4 } },
         ];
 
     for (const config of configs) {

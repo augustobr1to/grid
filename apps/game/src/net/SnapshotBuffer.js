@@ -47,7 +47,6 @@ export default class SnapshotBuffer {
                 bEntity.position[1] + (aEntity.position[1] - bEntity.position[1]) * t,
                 bEntity.position[2] + (aEntity.position[2] - bEntity.position[2]) * t,
             ],
-            yaw: bEntity.yaw != null ? bEntity.yaw + (aEntity.yaw - bEntity.yaw) * t : 0,
         };
     }
 

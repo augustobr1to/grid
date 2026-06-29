@@ -25,7 +25,14 @@ app.get('/', (_req, res) => {
 io.on('connection', (socket) => {
     console.log(`[Server] Client connected: ${socket.id}`);
 
-    socket.on('JOIN_ROOM', (data) => rooms.joinRoom(socket, data));
+    socket.on('JOIN_ROOM', async (data) => {
+        try {
+            await rooms.joinRoom(socket, data);
+        } catch (err: any) {
+            console.error(`[Server] JOIN_ROOM error for ${socket.id}:`, err?.message ?? err);
+            socket.emit('JOIN_ERROR', { message: err?.message ?? String(err) });
+        }
+    });
     socket.on('PLAYER_INPUT', (data) => rooms.handleInput(socket, data));
     socket.on('LEAVE_ROOM', () => rooms.leaveRoom(socket));
     socket.on('disconnect', () => rooms.handleDisconnect(socket));

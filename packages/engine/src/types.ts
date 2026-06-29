@@ -56,6 +56,12 @@ export interface RendererOptions {
   fixedTimeStep?: number;
   maxSubSteps?: number;
   powerPreference?: WebGLPowerPreference;
+  /** Default Tron look: ACES tone mapping + UnrealBloom + dark clear color. Defaults to true. */
+  tron?: boolean;
+  /** Tone mapping exposure when `tron` is enabled. Defaults to 1.0. */
+  toneMappingExposure?: number;
+  /** Bloom tuning when `tron` is enabled. */
+  bloom?: { strength?: number; radius?: number; threshold?: number };
 }
 
 export interface CameraOptions {

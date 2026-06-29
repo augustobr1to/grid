@@ -25,7 +25,7 @@ export class GridRoom extends Room<{ state: GridRoomState }> {
   onJoin(client: Client, options: { name?: string } = {}): void {
     const player = new PlayerState();
     player.id = client.sessionId;
-    player.name = options.name?.slice(0, 32) || `Player ${this.state.players.size + 1}`;
+    player.name = options.name?.slice(0, 32) || `Player ${client.sessionId.slice(0, 6)}`;
     player.x = (this.state.players.size % 8) * 2;
     player.z = Math.floor(this.state.players.size / 8) * 2;
     this.state.players.set(client.sessionId, player);
@@ -74,6 +74,7 @@ export class GridRoom extends Room<{ state: GridRoomState }> {
       player.z += (dz / length) * MOVE_SPEED * FIXED_DT;
       player.qy = Math.sin(yaw / 2);
       player.qw = Math.cos(yaw / 2);
+      player.pitch = clamp(input.pitch, -Math.PI / 2, Math.PI / 2);
       player.lastProcessedSeq = input.seq;
     }
 
@@ -82,16 +83,17 @@ export class GridRoom extends Room<{ state: GridRoomState }> {
 }
 
 function isValidInput(input: InputSnapshot): boolean {
-  return Boolean(
-    input &&
-      Number.isFinite(input.seq) &&
-      Number.isFinite(input.yaw) &&
-      Number.isFinite(input.pitch) &&
-      Array.isArray(input.origin) &&
-      input.origin.length === 3 &&
-      Array.isArray(input.direction) &&
-      input.direction.length === 3
-  );
+  if (!input) return false;
+  if (!Number.isFinite(input.seq) || !Number.isFinite(input.yaw) || !Number.isFinite(input.pitch)) {
+    return false;
+  }
+  if (input.origin !== undefined && !(Array.isArray(input.origin) && input.origin.length === 3)) {
+    return false;
+  }
+  if (input.direction !== undefined && !(Array.isArray(input.direction) && input.direction.length === 3)) {
+    return false;
+  }
+  return true;
 }
 
 function clamp(value: number, min: number, max: number): number {

@@ -68,6 +68,10 @@ export default class KinematicCharacterController extends CharacterController {
      * 5. THREE.Group sync happens automatically via engine loop
      */
     update(delta: number): void {
+        // Ground state from the previous frame drives this frame's jump/gravity.
+        // It is recomputed fresh by the BVH sweep below (1-frame latency — the
+        // standard kinematic pattern: detection can only run after displacement).
+        const wasGrounded = this._grounded;
         // Mouse look
         const mouseSensitivity = 0.002;
         this._yaw -= this._inputManager.getMouseDeltaX() * mouseSensitivity;
@@ -93,14 +97,13 @@ export default class KinematicCharacterController extends CharacterController {
         const hVelZ = _moveDir.z * this._speed;
 
         // Gravity
-        if (!this._grounded) {
+        if (!wasGrounded) {
             this._velocity.y -= this._gravity * delta;
         }
 
         // Jump
-        if (this._inputManager.isKeyDown(' ') && this._grounded) {
+        if (this._inputManager.isKeyDown(' ') && wasGrounded) {
             this._velocity.y = this._jumpForce;
-            this._grounded = false;
         }
 
         // Compute displacement
@@ -111,6 +114,10 @@ export default class KinematicCharacterController extends CharacterController {
         this._position.x += dx;
         this._position.y += dy;
         this._position.z += dz;
+
+        // Recompute ground state fresh: the BVH sweep below and the y<0 world
+        // floor are the only authorities that set _grounded true this frame.
+        this._grounded = false;
 
         // BVH capsule sweep (if collision mesh with BVH is available)
         if (this._collisionMesh && (this._collisionMesh.geometry as any).boundsTree) {

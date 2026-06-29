@@ -3,6 +3,7 @@
  */
 import * as THREE from 'three';
 import Asset from './Asset';
+import { resolveAssetURL, loadViaThreeLoader } from './assetURL';
 
 export default class SoundAsset extends Asset {
     private _buffer: AudioBuffer | null = null;
@@ -12,34 +13,15 @@ export default class SoundAsset extends Asset {
     }
 
     async load(baseURLorHandle: string | FileSystemDirectoryHandle): Promise<void> {
-        let url: string;
-        if (typeof baseURLorHandle === 'string') {
-            url = `${baseURLorHandle}/${this.path}`;
-        } else {
-            const parts = this.path.split('/');
-            let handle: FileSystemDirectoryHandle | FileSystemFileHandle = baseURLorHandle;
-            for (let i = 0; i < parts.length - 1; i++) {
-                handle = await (handle as FileSystemDirectoryHandle).getDirectoryHandle(parts[i]);
-            }
-            const fileHandle = await (handle as FileSystemDirectoryHandle).getFileHandle(parts[parts.length - 1]);
-            const file = await fileHandle.getFile();
-            url = URL.createObjectURL(file);
+        const { url, objUrl } = await resolveAssetURL(baseURLorHandle, this.path);
+        try {
+            const buffer = await loadViaThreeLoader(new THREE.AudioLoader(), url);
+            this._buffer = buffer;
+            this._data = buffer;
+            this._loaded = true;
+        } finally {
+            if (objUrl) URL.revokeObjectURL(objUrl);
         }
-
-        return new Promise((resolve, reject) => {
-            const loader = new THREE.AudioLoader();
-            loader.load(
-                url,
-                (buffer) => {
-                    this._buffer = buffer;
-                    this._data = buffer;
-                    this._loaded = true;
-                    resolve();
-                },
-                undefined,
-                (err) => reject(err)
-            );
-        });
     }
 
     dispose(): void {

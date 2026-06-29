@@ -10,6 +10,7 @@ export class PlayerState extends Schema {
   @type('number') qy = 0;
   @type('number') qz = 0;
   @type('number') qw = 1;
+  @type('number') pitch = 0;
   @type('number') lastProcessedSeq = 0;
 }
 
