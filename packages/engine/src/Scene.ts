@@ -14,6 +14,8 @@ export default class Scene {
 
   private rootGameObjects: GameObject[] = [];
   private rapier: typeof RAPIER | null = null;
+  /** Lights added directly to the scene — tracked so they can be disposed on unload. */
+  private sceneLights: THREE.Light[] = [];
 
   constructor(gameOrName: any = null, scenePath?: string) {
     if (typeof gameOrName === 'string' && scenePath === undefined) {
@@ -60,6 +62,7 @@ export default class Scene {
       gameObject.unload();
     }
     this.rootGameObjects = [];
+    this.disposeLights();
     this.threeJSScene.clear();
 
     this.rapierWorld?.free();
@@ -158,6 +161,7 @@ export default class Scene {
     if (resetGraph) {
       for (const gameObject of this.rootGameObjects) gameObject.unload();
       this.rootGameObjects = [];
+      this.disposeLights();
       this.threeJSScene.clear();
     }
 
@@ -203,8 +207,20 @@ export default class Scene {
 
     for (const config of configs) {
       const light = this.createLight(config);
-      if (light) this.threeJSScene.add(light);
+      if (light) {
+        this.threeJSScene.add(light);
+        this.sceneLights.push(light);
+      }
     }
+  }
+
+  /** Dispose scene-level lights (shadow maps / targets) and drop references. */
+  private disposeLights(): void {
+    for (const light of this.sceneLights) {
+      light.dispose?.();
+      light.parent?.remove(light);
+    }
+    this.sceneLights = [];
   }
 
   private createLight(config: SceneLightJSON): THREE.Light | null {

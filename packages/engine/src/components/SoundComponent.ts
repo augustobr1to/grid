@@ -58,6 +58,9 @@ export default class SoundComponent extends Component {
             if (this._positionalAudio.isPlaying) {
                 this._positionalAudio.stop();
             }
+            // Release the Web Audio node graph (panner/gain); without this, repeated
+            // load/unload cycles leak audio nodes on the shared AudioContext.
+            this._positionalAudio.disconnect();
             this.gameObject.threeJSGroup.remove(this._positionalAudio);
             this._positionalAudio = null;
         }
