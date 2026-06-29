@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@colyseus/core": "^0.17.44",
-    "@colyseus/schema": "^4.0.26",
+    "@colyseus/schema": "^4.0.27",
     "@colyseus/ws-transport": "^0.17.13",
     "@thegridcn/shared": "workspace:*",
     "express": "^4.22.1"
