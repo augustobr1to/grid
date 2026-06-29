@@ -121,7 +121,7 @@ export class GridRoom extends Room<GridRoomState> {
     // has no terrain, so this is a planar approximation; the local client owns its
     // own terrain-aware Y (reconcile corrects X/Z only). It exists so OTHER clients
     // see a player's jump arc rather than a body glued to rest height.
-    for (const [sessionId, player] of this.state.players) {
+    this.state.players.forEach((player, sessionId) => {
       let vy = this.verticalVel.get(sessionId) ?? 0;
       if (player.y <= REST_Y + 1e-4) {
         player.y = REST_Y;
@@ -134,7 +134,7 @@ export class GridRoom extends Room<GridRoomState> {
         vy = 0;
       }
       this.verticalVel.set(sessionId, vy);
-    }
+    });
 
     // Authoritative correction for each acting player's own prediction. Sent after
     // vertical sim so the y in the payload matches this tick's integrated position.
