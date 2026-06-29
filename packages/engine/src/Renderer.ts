@@ -9,13 +9,15 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import type { RendererOptions, CameraOptions } from './types';
+import type Game from './Game';
+import type Scene from './Scene';
 import Logger from './Logger';
 
 export default class Renderer {
     readonly threeJSRenderer: THREE.WebGLRenderer;
     readonly threeJSCamera: THREE.PerspectiveCamera;
     private _audioListener: THREE.AudioListener;
-    private _game: any; // Game — avoid circular import
+    private _game: Game;
     private _beforeRender?: (args: { deltaTimeInSec: number; time: number }) => void;
     private _clock: THREE.Clock;
     private _running = false;
@@ -33,7 +35,7 @@ export default class Renderer {
     private _bloomPass?: UnrealBloomPass;
     private _composerScene?: THREE.Scene;
 
-    constructor(game: any, options?: RendererOptions) {
+    constructor(game: Game, options?: RendererOptions) {
         this._game = game;
         this._beforeRender = options?.beforeRender;
         this._clock = new THREE.Clock();
@@ -236,11 +238,13 @@ export default class Renderer {
         this._composerScene = scene;
     }
 
-    private _stepPhysics(scene: any, deltaTimeInSec: number): void {
+    private _stepPhysics(scene: Scene, deltaTimeInSec: number): void {
+        const world = scene.rapierWorld;
+        if (!world) return;
         this._accumulator += Math.min(deltaTimeInSec, 0.25);
         let steps = 0;
         while (this._accumulator >= this._fixedTimeStep && steps < this._maxSubSteps) {
-            scene.rapierWorld.step();
+            world.step();
             this._accumulator -= this._fixedTimeStep;
             steps++;
         }

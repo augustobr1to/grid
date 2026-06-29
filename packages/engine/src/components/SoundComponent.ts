@@ -12,6 +12,7 @@ export default class SoundComponent extends Component {
         const data = this.jsonData as SoundComponentJSON;
         const scene = this.gameObject.getScene();
         const game = scene.game;
+        if (!game) return; // detached scene — no renderer/listener to attach to
 
         // Get the audio listener from the renderer
         const listener = game.renderer.getCameraAudioListener();

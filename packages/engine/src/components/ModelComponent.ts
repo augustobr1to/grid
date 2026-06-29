@@ -12,6 +12,7 @@ export default class ModelComponent extends Component {
     async load(): Promise<void> {
         const data = this.jsonData as ModelComponentJSON;
         const game = this.gameObject.getScene().game;
+        if (!game) return; // detached scene (e.g. editor preview) — nothing to load from
         const asset = await game.assetStore.load(data.assetPath) as GLTFAsset;
 
         if (asset.gltf) {

@@ -1,11 +1,12 @@
 import * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
 import GameObject from './GameObject';
+import type Game from './Game';
 import type { FogJSON, GameObjectJSON, SceneJSON, SceneLightJSON } from './types';
 import Logger from './Logger';
 
 export default class Scene {
-  readonly game: any;
+  readonly game: Game | null;
   readonly scenePath: string;
   readonly threeJSScene: THREE.Scene;
   rapierWorld: RAPIER.World | null = null;
@@ -17,13 +18,13 @@ export default class Scene {
   /** Lights added directly to the scene — tracked so they can be disposed on unload. */
   private sceneLights: THREE.Light[] = [];
 
-  constructor(gameOrName: any = null, scenePath?: string) {
+  constructor(gameOrName: Game | string | null = null, scenePath?: string) {
     if (typeof gameOrName === 'string' && scenePath === undefined) {
       this.game = null;
       this.scenePath = gameOrName;
       this.name = gameOrName;
     } else {
-      this.game = gameOrName;
+      this.game = typeof gameOrName === 'string' ? null : gameOrName;
       this.scenePath = scenePath ?? 'Scene';
       this.name = this.scenePath;
     }

@@ -32,4 +32,13 @@ export default [
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
     },
   },
+  {
+    // The engine is the public API surface — hold it to a stricter bar than the
+    // apps. No new `any` may enter engine source (tests excluded).
+    files: ['packages/engine/src/**/*.ts'],
+    ignores: ['packages/engine/src/**/*.test.ts', 'packages/engine/src/__tests__/**'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'error',
+    },
+  },
 ];

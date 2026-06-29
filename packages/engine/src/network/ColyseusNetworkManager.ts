@@ -79,15 +79,15 @@ export default class ColyseusNetworkManager<TState = unknown> extends EventEmitt
 
   onMessage<T = unknown>(type: string | number, callback: (payload: T) => void): void {
     if (!this.room) throw new Error('[ColyseusNetworkManager] onMessage() called before connect()');
-    this.room.onMessage(type as any, callback as any);
+    this.room.onMessage(type, callback as (payload: unknown) => void);
   }
 
   private bindRoom(room: Room<TState>): void {
-    (room.onStateChange as any)((state: TState) => {
+    room.onStateChange((state: TState) => {
       this.emit('stateChanged', state);
     });
 
-    room.onMessage('*' as any, (type: string | number, payload: unknown) => {
+    room.onMessage('*', (type: string | number, payload: unknown) => {
       this.emit('message', { type, payload } satisfies ColyseusMessage);
     });
 

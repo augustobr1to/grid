@@ -4,8 +4,12 @@
  */
 import * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
+import type { MeshBVH, ExtendedTriangle } from 'three-mesh-bvh';
 import CharacterController from './CharacterController';
 import InputManager from '../input/InputManager';
+
+/** three-mesh-bvh augments BufferGeometry with `boundsTree` at runtime (patched in the app). */
+type BVHGeometry = THREE.BufferGeometry & { boundsTree?: MeshBVH };
 
 // Reusable temp vectors — zero per-frame allocations
 const _moveDir = new THREE.Vector3();
@@ -122,8 +126,8 @@ export default class KinematicCharacterController extends CharacterController {
         this._grounded = false;
 
         // BVH capsule sweep (if collision mesh with BVH is available)
-        if (this._collisionMesh && (this._collisionMesh.geometry as any).boundsTree) {
-            const boundsTree = (this._collisionMesh.geometry as any).boundsTree;
+        const boundsTree = (this._collisionMesh?.geometry as BVHGeometry | undefined)?.boundsTree;
+        if (this._collisionMesh && boundsTree) {
             const radius = this._capsuleRadius;
 
             _capsuleLine.start.set(
@@ -143,7 +147,7 @@ export default class KinematicCharacterController extends CharacterController {
             // Intersect
             boundsTree.shapecast({
                 intersectsBounds: (box: THREE.Box3) => box.intersectsBox(_capsuleBox),
-                intersectsTriangle: (tri: any) => {
+                intersectsTriangle: (tri: ExtendedTriangle) => {
                     const dist = tri.closestPointToSegment(_capsuleLine, _triPoint, _capPoint);
                     if (dist < radius) {
                         const depth = radius - dist;

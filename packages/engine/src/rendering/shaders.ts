@@ -5,11 +5,12 @@ export type ShaderFactory<TParams extends Record<string, unknown> = Record<strin
 ) => THREE.ShaderMaterial;
 
 export class ShaderLibrary {
-  private readonly factories = new Map<string, ShaderFactory<any>>();
+  private readonly factories = new Map<string, ShaderFactory>();
 
   register<TParams extends Record<string, unknown>>(name: string, factory: ShaderFactory<TParams>): void {
     if (this.factories.has(name)) throw new Error(`[ShaderLibrary] Shader already registered: ${name}`);
-    this.factories.set(name, factory);
+    // Widen the param type for storage; create() narrows again at the call site.
+    this.factories.set(name, factory as ShaderFactory);
   }
 
   create<TParams extends Record<string, unknown>>(name: string, params?: TParams): THREE.ShaderMaterial {

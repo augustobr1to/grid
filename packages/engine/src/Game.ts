@@ -4,6 +4,13 @@
  */
 import type { GameOptions } from './types';
 import Renderer from './Renderer';
+
+/** Parsed game.json manifest. Open-ended, but the fields the engine reads are typed. */
+export interface GameManifest {
+    scenes?: Record<string, string>;
+    gameObjectTypes?: Record<string, string>;
+    [key: string]: unknown;
+}
 import Scene from './Scene';
 import AssetStore from './assets/AssetStore';
 import InputManager from './input/InputManager';
@@ -19,7 +26,7 @@ export default class Game {
     scene: Scene | null = null;
     _baseURLorDirHandle: string | FileSystemDirectoryHandle;
     _options?: GameOptions;
-    _gameJSON: any = null;
+    _gameJSON: GameManifest | null = null;
     private _initialized = false;
     private _loadingScene = false;
 
@@ -64,7 +71,7 @@ export default class Game {
         // Load game.json
         try {
             const gameAsset = await this.assetStore.load('game.json');
-            this._gameJSON = gameAsset.data;
+            this._gameJSON = gameAsset.data as GameManifest;
             Logger.info('game.json loaded:', this._gameJSON);
         } catch (err) {
             Logger.warn('No game.json found — game will run without manifest.', err);

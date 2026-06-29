@@ -1,7 +1,11 @@
 import * as THREE from 'three';
 import Component from './Component';
 import type RAPIER from '@dimforge/rapier3d-compat';
+import type Scene from './Scene';
 import type { ComponentJSON, EulerValues, GameObjectJSON, Transform, Vector3Data } from './types';
+
+/** Concrete component constructor — the registry stores these behind `typeof Component`. */
+type ComponentConstructor = new (gameObject: GameObject, json: ComponentJSON) => Component;
 import { deepMerge, generateId } from './Util';
 import Logger from './Logger';
 import ModelComponent from './components/ModelComponent';
@@ -93,7 +97,7 @@ export default class GameObject {
   async load(): Promise<void> {
     let mergedJSON = { ...this.jsonData };
     const scene = this.getSceneOrNull();
-    const game = scene?.game as any;
+    const game = scene?.game;
 
     if (this.type && game?._gameJSON?.gameObjectTypes?.[this.type]) {
       const typePath = game._gameJSON.gameObjectTypes[this.type];
@@ -168,7 +172,7 @@ export default class GameObject {
     for (const child of this.gameObjects) child.destroyPhysics();
   }
 
-  getScene(): any {
+  getScene(): Scene {
     const scene = this.getSceneOrNull();
     if (!scene) throw new Error(`[GameObject] "${this.name}" has no Scene ancestor`);
     return scene;
@@ -195,7 +199,7 @@ export default class GameObject {
     return [...this.gameObjects];
   }
 
-  getParent(): any | null {
+  getParent(): GameObjectParent | null {
     return this.parent;
   }
 
@@ -208,7 +212,7 @@ export default class GameObject {
         return this;
       }
       this.components.push(input);
-      (input as any).onAttach?.(this);
+      input.onAttach?.(this);
       return this;
     }
 
@@ -221,7 +225,7 @@ export default class GameObject {
   removeComponent(type: string): void {
     const index = this.components.findIndex((component) => component.getType() === type);
     if (index === -1) return;
-    (this.components[index] as any).onDetach?.(this);
+    this.components[index].onDetach?.(this);
     this.components[index].unload();
     this.components.splice(index, 1);
   }
@@ -304,14 +308,14 @@ export default class GameObject {
       Logger.warn(`[GameObject] Unknown component type: "${json.type}"`);
       return null;
     }
-    return new (Klass as any)(this, json);
+    return new (Klass as unknown as ComponentConstructor)(this, json);
   }
 
-  private getSceneOrNull(): any | null {
-    let current: any = this.parent;
+  private getSceneOrNull(): Scene | null {
+    let current: GameObjectParent | null = this.parent;
     while (current) {
-      if (current.threeJSScene && 'rapierWorld' in current) return current;
-      current = current.parent;
+      if (current.threeJSScene && 'rapierWorld' in current) return current as unknown as Scene;
+      current = current.parent ?? null;
     }
     return null;
   }
