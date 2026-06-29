@@ -53,7 +53,7 @@ jobs:
 
       # Sets NX_BASE / NX_HEAD so `nx affected` knows what changed on PRs.
       - name: Derive Nx SHAs
-        uses: nrwl/nx-set-shas@v4
+        uses: nrwl/nx-set-shas@v5
 
       - name: Lint, test, build (affected on PRs)
         if: github.event_name == 'pull_request'
