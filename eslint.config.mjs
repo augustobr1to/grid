@@ -9,6 +9,7 @@ export default [
       '**/node_modules/**',
       '**/.nx/**',
       '**/.yarn/**',
+      '**/.remember/**',
       'tests/__mocks__/**',
     ],
   },

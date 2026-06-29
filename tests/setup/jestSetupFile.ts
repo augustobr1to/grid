@@ -12,5 +12,5 @@
 };
 
 // Mock requestAnimationFrame
-(global as any).requestAnimationFrame = (cb: Function) => setTimeout(cb, 16);
+(global as any).requestAnimationFrame = (cb: () => void) => setTimeout(cb, 16);
 (global as any).cancelAnimationFrame = (id: number) => clearTimeout(id);
