@@ -41,11 +41,16 @@ export default function EnginePreview() {
       camera.updateProjectionMatrix();
     };
 
+    // Resize on layout changes only, via ResizeObserver — calling
+    // getBoundingClientRect() every frame forces a synchronous layout reflow.
+    resize();
+    const resizeObserver = new ResizeObserver(resize);
+    resizeObserver.observe(canvas);
+
     const render = (time: number) => {
       frame = requestAnimationFrame(render);
       const delta = Math.min((time - last) / 1000, 0.05);
       last = time;
-      resize();
       ship.rotation.x += delta * 0.22;
       ship.rotation.y += delta * 0.42;
       advanceShaderTime(gridMaterial, delta);
@@ -56,6 +61,7 @@ export default function EnginePreview() {
     frame = requestAnimationFrame(render);
     return () => {
       cancelAnimationFrame(frame);
+      resizeObserver.disconnect();
       grid.geometry.dispose();
       ship.geometry.dispose();
       gridMaterial.dispose();

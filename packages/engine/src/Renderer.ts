@@ -20,6 +20,9 @@ export default class Renderer {
     private _clock: THREE.Clock;
     private _running = false;
     private _resizeHandler?: () => void;
+    private _contextLostHandler?: (e: Event) => void;
+    private _contextRestoredHandler?: () => void;
+    private _wasRunningBeforeContextLoss = false;
     private _fixedTimeStep: number;
     private _maxSubSteps: number;
     private _accumulator = 0;
@@ -105,6 +108,26 @@ export default class Renderer {
             window.addEventListener('resize', this._resizeHandler);
         }
 
+        // WebGL context loss/restore — without this a lost context (GPU reset, tab
+        // backgrounding, driver hiccup) permanently freezes or blanks the canvas.
+        const canvas = this.threeJSRenderer.domElement;
+        this._contextLostHandler = (event: Event) => {
+            event.preventDefault(); // required for 'webglcontextrestored' to fire
+            Logger.warn('[Renderer] WebGL context lost — pausing render loop');
+            this._wasRunningBeforeContextLoss = this._running;
+            this.stop();
+        };
+        this._contextRestoredHandler = () => {
+            Logger.info('[Renderer] WebGL context restored — rebuilding pipeline');
+            // GL-resident objects (composer/passes) are invalid; force a rebuild.
+            this._composer?.dispose();
+            this._composer = undefined;
+            this._composerScene = undefined;
+            if (this._wasRunningBeforeContextLoss) this.start();
+        };
+        canvas.addEventListener('webglcontextlost', this._contextLostHandler as EventListener);
+        canvas.addEventListener('webglcontextrestored', this._contextRestoredHandler);
+
         Logger.info('Renderer initialised (no VR/WebXR)');
     }
 
@@ -175,6 +198,15 @@ export default class Renderer {
         if (this._resizeHandler) {
             window.removeEventListener('resize', this._resizeHandler);
             this._resizeHandler = undefined;
+        }
+        const canvas = this.threeJSRenderer.domElement;
+        if (this._contextLostHandler) {
+            canvas.removeEventListener('webglcontextlost', this._contextLostHandler as EventListener);
+            this._contextLostHandler = undefined;
+        }
+        if (this._contextRestoredHandler) {
+            canvas.removeEventListener('webglcontextrestored', this._contextRestoredHandler);
+            this._contextRestoredHandler = undefined;
         }
         this._composer?.dispose();
         this.threeJSRenderer.dispose();
