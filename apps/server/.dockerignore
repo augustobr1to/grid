@@ -1,0 +1,10 @@
+node_modules
+**/node_modules
+dist
+**/dist
+.nx
+.git
+coverage
+docs/api
+*.log
+.DS_Store

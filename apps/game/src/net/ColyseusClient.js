@@ -12,7 +12,10 @@ import { ColyseusNetworkManager } from '@thegridcn/engine';
 export default class ColyseusClient {
     constructor(options = {}) {
         this._nm = new ColyseusNetworkManager({
-            endpoint: options.endpoint, // undefined → manager default ws://host:2567
+            // Precedence: explicit option → VITE_COLYSEUS_URL build env → manager
+            // default (ws(s)://<host>:2567). The env var lets a deployed client point
+            // at a server on a different host without code changes.
+            endpoint: options.endpoint ?? import.meta.env?.VITE_COLYSEUS_URL,
             roomName: options.roomName ?? 'grid_room',
         });
         this._seq = 0;
