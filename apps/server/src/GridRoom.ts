@@ -26,6 +26,15 @@ export class GridRoom extends Room<{ state: GridRoomState }> {
     // server). Registered as no-ops so Colyseus does not warn on these messages.
     this.onMessage('ARSENAL_EQUIP', () => {});
     this.onMessage('RESUPPLY_REQ', () => {});
+
+    // Voice: broker each client's PeerJS id through room state so peers can call
+    // each other directly (P2P WebRTC). The server only relays the id.
+    this.onMessage('voice-peer', (client, payload: { peerId?: string }) => {
+      const player = this.state.players.get(client.sessionId);
+      if (player && typeof payload?.peerId === 'string') {
+        player.peerId = payload.peerId.slice(0, 64);
+      }
+    });
   }
 
   onJoin(client: Client, options: { name?: string; team?: string } = {}): void {

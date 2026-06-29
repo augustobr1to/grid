@@ -16,6 +16,7 @@ import CapturePoint from './map/CapturePoint.js';
 import SpawnNode from './map/SpawnNode.js';
 import ColyseusClient from './net/ColyseusClient.js';
 import SnapshotBuffer from './net/SnapshotBuffer.js';
+import VoiceChat from './voice/VoiceChat.js';
 import BulletTracerPool from './weapons/BulletTracer.js';
 import { getWeapon } from './weapons/WeaponRegistry.js';
 import { Events } from './constants/Events.js';
@@ -44,6 +45,7 @@ const game = new Game('', {
 let clientState = 'MAIN_MENU';
 let socketClient = null;
 let snapshotBuffer = null;
+let voiceChat = null;
 let tracerPool = null;
 let cityData = null;
 let capturePoints = [];
@@ -160,6 +162,10 @@ async function onPlayClicked(playerName, teamPref) {
     // Listen for server events
     setupNetworkListeners();
 
+    // Voice chat (best-effort P2P; never blocks the match if mic is denied)
+    voiceChat = new VoiceChat();
+    voiceChat.init((peerId) => socketClient.setVoicePeerId(peerId));
+
     // Spawn player
     // Set up the local player controller using the engine's KinematicCharacterController
     characterController = new KinematicCharacterController({
@@ -192,10 +198,13 @@ function setupNetworkListeners() {
         snapshotBuffer.push(snap);
 
         if (snap.entities) {
+            const peerIds = [];
             for (const entity of snap.entities) {
                 if (entity.id === localPlayerId) continue;
                 updateRemotePlayer(entity);
+                if (entity.peerId) peerIds.push(entity.peerId);
             }
+            if (voiceChat && peerIds.length) voiceChat.connectPeers(peerIds);
         }
     });
 

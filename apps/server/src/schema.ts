@@ -4,6 +4,8 @@ export class PlayerState extends Schema {
   @type('string') id = '';
   @type('string') name = '';
   @type('string') team = 'blue';
+  /** PeerJS id for P2P voice chat; brokered through room state. */
+  @type('string') peerId = '';
   @type('number') x = 0;
   @type('number') y = 1.7;
   @type('number') z = 0;

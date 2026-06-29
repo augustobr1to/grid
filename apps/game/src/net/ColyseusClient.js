@@ -56,7 +56,7 @@ export default class ColyseusClient {
                 this._known.add(id);
                 if (id !== this._localId) this._emit('playerJoined', { playerId: id, playerName: p.name });
             }
-            entities.push({ id, position: [p.x, p.y, p.z], team: p.team, qy: p.qy, qw: p.qw });
+            entities.push({ id, position: [p.x, p.y, p.z], team: p.team, qy: p.qy, qw: p.qw, peerId: p.peerId });
         });
         for (const id of [...this._known]) {
             if (!seen.has(id)) {
@@ -79,6 +79,11 @@ export default class ColyseusClient {
 
     requestResupply(pointId) {
         if (this._joined) this._nm.send('RESUPPLY_REQ', { pointId });
+    }
+
+    /** Publish this client's PeerJS id so other players can establish P2P voice. */
+    setVoicePeerId(peerId) {
+        if (this._joined) this._nm.send('voice-peer', { peerId });
     }
 
     disconnect() {
