@@ -77,6 +77,31 @@ let shieldEnd = 0;
 
 // Remote players (Map<string, THREE.Mesh>)
 const remotePlayers = new Map();
+// Shared remote-player GPU resources — one geometry + per-team materials reused
+// across all remote meshes (was one geometry + one material allocated per player).
+let _remoteGeo = null;
+const _teamMaterials = {};
+function remoteGeometry() {
+    if (!_remoteGeo) _remoteGeo = new THREE.CapsuleGeometry(CAPSULE_RADIUS, CAPSULE_HALF_HEIGHT * 2, 4, 8);
+    return _remoteGeo;
+}
+function teamMaterial(team) {
+    const key = team === 'blue' ? 'blue' : 'red';
+    if (!_teamMaterials[key]) {
+        _teamMaterials[key] = new THREE.MeshBasicMaterial({ color: key === 'blue' ? 0x4488ff : 0xff4444 });
+    }
+    return _teamMaterials[key];
+}
+
+// Input send throttle (see game loop)
+const INPUT_SEND_HZ = 30;
+const INPUT_SEND_INTERVAL = 1 / INPUT_SEND_HZ;
+let _sendAccum = 0;
+const _inputPayload = {
+    forward: false, backward: false, left: false, right: false, jump: false,
+    yaw: 0, pitch: 0, fire: false, weaponId: 'smg', slot: 'sr',
+    origin: [0, 0, 0], direction: [0, 0, 0],
+};
 
 // Constants
 const MOVE_SPEED = 8;
@@ -283,13 +308,11 @@ function setupNetworkListeners() {
 }
 
 // ─── Remote players ─────────────────────────────────────────────────────────
-function createRemotePlayerMesh(id) {
+function createRemotePlayerMesh(id, team = 'red') {
     // Guard against double-creation: a WORLD_SNAPSHOT can lazily create a mesh
     // before PLAYER_JOINED fires, which would otherwise orphan the first mesh.
     if (remotePlayers.has(id)) return;
-    const geo = new THREE.CapsuleGeometry(CAPSULE_RADIUS, CAPSULE_HALF_HEIGHT * 2, 4, 8);
-    const mat = new THREE.MeshBasicMaterial({ color: 0x888888 });
-    const mesh = new THREE.Mesh(geo, mat);
+    const mesh = new THREE.Mesh(remoteGeometry(), teamMaterial(team));
     mesh.name = `remote_${id}`;
     game.scene.threeJSScene.add(mesh);
     remotePlayers.set(id, mesh);
@@ -298,7 +321,7 @@ function createRemotePlayerMesh(id) {
 function updateRemotePlayer(snap) {
     let mesh = remotePlayers.get(snap.id);
     if (!mesh) {
-        createRemotePlayerMesh(snap.id);
+        createRemotePlayerMesh(snap.id, snap.team);
         mesh = remotePlayers.get(snap.id);
     }
     if (mesh) {
@@ -309,8 +332,9 @@ function updateRemotePlayer(snap) {
         } else {
             mesh.position.set(snap.position[0], snap.position[1], snap.position[2]);
         }
-        // Team colour
-        mesh.material.color.setHex(snap.team === 'blue' ? 0x4488ff : 0xff4444);
+        // Team material (shared, swapped by reference — no per-frame color mutation)
+        const mat = teamMaterial(snap.team);
+        if (mesh.material !== mat) mesh.material = mat;
     }
 }
 
@@ -318,8 +342,7 @@ function removeRemotePlayer(id) {
     const mesh = remotePlayers.get(id);
     if (mesh) {
         game.scene.threeJSScene.remove(mesh);
-        mesh.geometry.dispose();
-        mesh.material.dispose();
+        // Geometry + materials are shared across all remotes — do NOT dispose here.
         remotePlayers.delete(id);
     }
 }
@@ -373,24 +396,29 @@ function onBeforeRender({ deltaTimeInSec }) {
         Scoreboard.hide();
     }
 
-    // ─── Send input to server ──────────────────────────────────────────
-    if (socketClient && socketClient.isConnected) {
-        const currentWeaponId = activeSlot === 'sr' ? srWeaponId : hrWeaponId;
+    // ─── Send input to server (fixed rate, reused payload) ─────────────
+    // Render runs at up to 144 Hz; the server simulates at 60 Hz and keeps only
+    // the latest input. Sending every frame is pure waste + GC churn, so throttle
+    // to INPUT_SEND_HZ and reuse one payload object/arrays.
+    _sendAccum += dt;
+    if (socketClient && socketClient.isConnected && _sendAccum >= INPUT_SEND_INTERVAL) {
+        _sendAccum = 0;
+        const im = game.inputManager;
+        const p = _inputPayload;
+        p.forward = im.isKeyDown('w');
+        p.backward = im.isKeyDown('s');
+        p.left = im.isKeyDown('a');
+        p.right = im.isKeyDown('d');
+        p.jump = im.isKeyDown(' ');
+        p.yaw = characterController ? characterController.yaw : 0;
+        p.pitch = characterController ? characterController.pitch : 0;
+        p.fire = firePendingThisFrame;
+        p.weaponId = activeSlot === 'sr' ? srWeaponId : hrWeaponId;
+        p.slot = activeSlot;
         camera.getWorldDirection(_rayDir);
-        socketClient.sendInput({
-            forward: game.inputManager.isKeyDown('w'),
-            backward: game.inputManager.isKeyDown('s'),
-            left: game.inputManager.isKeyDown('a'),
-            right: game.inputManager.isKeyDown('d'),
-            jump: game.inputManager.isKeyDown(' '),
-            yaw: characterController ? characterController.yaw : 0,
-            pitch: characterController ? characterController.pitch : 0,
-            fire: firePendingThisFrame,
-            weaponId: currentWeaponId,
-            slot: activeSlot,
-            origin: [camera.position.x, camera.position.y, camera.position.z],
-            direction: [_rayDir.x, _rayDir.y, _rayDir.z],
-        });
+        p.origin[0] = camera.position.x; p.origin[1] = camera.position.y; p.origin[2] = camera.position.z;
+        p.direction[0] = _rayDir.x; p.direction[1] = _rayDir.y; p.direction[2] = _rayDir.z;
+        socketClient.sendInput(p);
         firePendingThisFrame = false;
     }
 

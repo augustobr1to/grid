@@ -16,6 +16,8 @@ const _capsuleLine = new THREE.Line3();
 const _capsuleBox = new THREE.Box3();
 const _triPoint = new THREE.Vector3();
 const _capPoint = new THREE.Vector3();
+const _normal = new THREE.Vector3();
+const _push = new THREE.Vector3();
 
 export default class KinematicCharacterController extends CharacterController {
     private _rigidBody: RAPIER.RigidBody | null = null;
@@ -145,22 +147,23 @@ export default class KinematicCharacterController extends CharacterController {
                     const dist = tri.closestPointToSegment(_capsuleLine, _triPoint, _capPoint);
                     if (dist < radius) {
                         const depth = radius - dist;
-                        const normal = _capPoint.clone().sub(_triPoint);
-                        if (normal.lengthSq() < 0.00001) {
-                            normal.set(0, 1, 0);
+                        // Scratch vectors — zero allocation inside this per-triangle callback.
+                        _normal.subVectors(_capPoint, _triPoint);
+                        if (_normal.lengthSq() < 0.00001) {
+                            _normal.set(0, 1, 0);
                         } else {
-                            normal.normalize();
+                            _normal.normalize();
                         }
 
-                        this._position.addScaledVector(normal, depth);
+                        this._position.addScaledVector(_normal, depth);
 
                         // Push memory capsule so future triangles in this identical frame shapecast react accurately
-                        _capsuleLine.start.addScaledVector(normal, depth);
-                        _capsuleLine.end.addScaledVector(normal, depth);
-                        _capsuleBox.translate(normal.clone().multiplyScalar(depth));
+                        _capsuleLine.start.addScaledVector(_normal, depth);
+                        _capsuleLine.end.addScaledVector(_normal, depth);
+                        _capsuleBox.translate(_push.copy(_normal).multiplyScalar(depth));
 
                         // Ground detection
-                        if (normal.y > 0.5) {
+                        if (_normal.y > 0.5) {
                             this._grounded = true;
                             this._velocity.y = Math.max(0, this._velocity.y);
                         }
