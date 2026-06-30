@@ -21,14 +21,14 @@
         "test": "jest --config ../../jest.config.js"
     },
     "dependencies": {
-        "@dimforge/rapier3d-compat": "^0.11.2",
+        "@dimforge/rapier3d-compat": "^0.19.3",
         "@thegridcn/shared": "workspace:*",
         "@colyseus/sdk": "^0.17.43",
-        "three": "^0.168.0",
-        "three-mesh-bvh": "^0.7.0"
+        "three": "^0.185.0",
+        "three-mesh-bvh": "^0.9.10"
     },
     "devDependencies": {
-        "@types/three": "^0.168.0",
+        "@types/three": "^0.185.0",
         "typescript": "^5.9.3",
         "vite": "^7.0.0",
         "vite-plugin-dts": "^5.0.3"
