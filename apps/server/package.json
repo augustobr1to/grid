@@ -15,11 +15,11 @@
     "@colyseus/schema": "^4.0.27",
     "@colyseus/ws-transport": "^0.17.13",
     "@thegridcn/shared": "workspace:*",
-    "express": "^4.22.1"
+    "express": "^5.2.1"
   },
   "devDependencies": {
     "@colyseus/sdk": "^0.17.43",
-    "@types/express": "^4.17.21",
+    "@types/express": "^5.0.6",
     "@types/jest": "29.5.14",
     "@types/node": "^22.10.2",
     "jest": "29.7.0",
