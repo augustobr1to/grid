@@ -23,7 +23,7 @@
     "dependencies": {
         "@dimforge/rapier3d-compat": "^0.11.2",
         "@thegridcn/shared": "workspace:*",
-        "colyseus.js": "^0.16.0",
+        "@colyseus/sdk": "^0.17.43",
         "three": "^0.168.0",
         "three-mesh-bvh": "^0.7.0"
     },

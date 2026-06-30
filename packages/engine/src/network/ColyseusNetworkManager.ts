@@ -1,4 +1,4 @@
-import { Client, Room } from 'colyseus.js';
+import { Client, Room } from '@colyseus/sdk';
 import type { InputSnapshot } from '@thegridcn/shared';
 import type { ColyseusNetworkOptions } from '../types';
 import EventEmitter from '../util/EventEmitter';
@@ -15,10 +15,12 @@ export interface ColyseusMessage<T = unknown> {
   payload: T;
 }
 
+type NetworkRoom<TState> = Room<unknown, TState>;
+
 export default class ColyseusNetworkManager<TState = unknown> extends EventEmitter {
   readonly options: Required<Pick<ColyseusNetworkOptions, 'endpoint' | 'roomName'>> & ColyseusNetworkOptions;
   client: Client;
-  room: Room<TState> | null = null;
+  room: NetworkRoom<TState> | null = null;
 
   constructor(options: ColyseusNetworkOptions = {}) {
     super();
@@ -46,14 +48,15 @@ export default class ColyseusNetworkManager<TState = unknown> extends EventEmitt
     return this.room?.state ?? null;
   }
 
-  async connect(auth: Record<string, unknown> = this.options.auth ?? {}): Promise<Room<TState>> {
+  async connect(auth: Record<string, unknown> = this.options.auth ?? {}): Promise<NetworkRoom<TState>> {
     if (this.room) return this.room;
 
     try {
-      this.room = await this.client.joinOrCreate<TState>(this.options.roomName, auth);
-      this.bindRoom(this.room);
-      this.emit('connected', this.room);
-      return this.room;
+      const room = (await this.client.joinOrCreate(this.options.roomName, auth)) as NetworkRoom<TState>;
+      this.room = room;
+      this.bindRoom(room);
+      this.emit('connected', room);
+      return room;
     } catch (err) {
       this.emit('error', err);
       throw err;
@@ -70,7 +73,7 @@ export default class ColyseusNetworkManager<TState = unknown> extends EventEmitt
 
   send<T = unknown>(type: string | number, payload?: T): void {
     if (!this.room) throw new Error('[ColyseusNetworkManager] send() called before connect()');
-    this.room.send(type, payload);
+    this.room.send(type as never, payload);
   }
 
   sendInput(input: InputSnapshot): void {
@@ -79,10 +82,10 @@ export default class ColyseusNetworkManager<TState = unknown> extends EventEmitt
 
   onMessage<T = unknown>(type: string | number, callback: (payload: T) => void): void {
     if (!this.room) throw new Error('[ColyseusNetworkManager] onMessage() called before connect()');
-    this.room.onMessage(type, callback as (payload: unknown) => void);
+    this.room.onMessage(type as never, callback as (payload: unknown) => void);
   }
 
-  private bindRoom(room: Room<TState>): void {
+  private bindRoom(room: NetworkRoom<TState>): void {
     room.onStateChange((state: TState) => {
       this.emit('stateChanged', state);
     });

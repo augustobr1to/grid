@@ -14,7 +14,7 @@ export default defineConfig({
   },
   build: {
     target: 'es2022',
-    sourcemap: true,
+    sourcemap: process.env.SOURCE_MAPS === 'true',
     chunkSizeWarningLimit: 900,
   },
 });

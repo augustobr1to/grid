@@ -21,7 +21,7 @@ export default defineConfig({
       external: [
         "@dimforge/rapier3d-compat",
         "@thegridcn/shared",
-        "colyseus.js",
+        "@colyseus/sdk",
         "three",
         "three-mesh-bvh",
       ],

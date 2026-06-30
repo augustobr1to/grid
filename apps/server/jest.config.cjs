@@ -10,5 +10,7 @@ module.exports = {
   },
   transform: {
     '^.+\\.ts$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.test.json' }],
+    '^.+\\.mjs$': '<rootDir>/jest.mjs-transformer.cjs',
   },
+  transformIgnorePatterns: ['/node_modules/(?!.*rou3/)'],
 };

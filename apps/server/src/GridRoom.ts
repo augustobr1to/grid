@@ -18,7 +18,7 @@ const PEER_ID_RE = /^[a-zA-Z0-9_-]{1,64}$/;
 // per-connection CPU cost (validation + dedupe) — basic message-flood DoS defense.
 const MAX_INPUTS_PER_SEC = 120;
 
-export class GridRoom extends Room<GridRoomState> {
+export class GridRoom extends Room<{ state: GridRoomState }> {
   maxClients = MAX_PLAYERS;
   private readonly pendingInputs = new Map<string, InputSnapshot>();
   private readonly clientsById = new Map<string, Client>();

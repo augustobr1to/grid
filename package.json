@@ -60,7 +60,7 @@
       "name": "engine (own code, peers externalized)",
       "path": "packages/engine/dist/index.mjs",
       "limit": "40 kB",
-      "ignore": ["three", "@dimforge/rapier3d-compat", "three-mesh-bvh", "colyseus.js"]
+      "ignore": ["three", "@dimforge/rapier3d-compat", "three-mesh-bvh", "@colyseus/sdk"]
     }
   ]
 }
